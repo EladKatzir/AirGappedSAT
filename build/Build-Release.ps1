@@ -31,7 +31,7 @@ dotnet publish $Project -c Release -r win-x64 --self-contained -p:Version=$Versi
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed.' }
 
 Write-Host '[3/4] Adding deployment helpers...'
-Copy-Item (Join-Path $Root 'deploy\*.bat'), (Join-Path $Root 'deploy\*.txt') $Stage
+Copy-Item (Join-Path $Root 'deploy\*.bat'), (Join-Path $Root 'deploy\*.txt'), (Join-Path $Root 'deploy\*.ps1') $Stage
 Set-Content (Join-Path $Stage 'VERSION.txt') $Version
 Get-ChildItem $Stage -Recurse -Include *.dll, *.exe |
     Sort-Object FullName |

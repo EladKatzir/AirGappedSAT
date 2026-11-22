@@ -1,0 +1,92 @@
+@page "{id:int?}"
+@model SatPrep.Pages.Content.EditModel
+@{
+    ViewData["Title"] = Model.Id is null ? "New question" : "Edit question";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <h1 class="h3 mb-1">@ViewData["Title"]</h1>
+        <p class="text-muted">Text supports Markdown and math: write <code>$x^2$</code> for inline math, <code>\$5</code> for a dollar sign, and <code>| a | b |</code> rows for tables.</p>
+        @if (Model.Error is not null)
+        {
+            <div class="alert alert-danger">@Model.Error</div>
+        }
+        <form method="post" class="card p-4">
+            <input type="hidden" asp-for="Id" />
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Skill</label>
+                    <select class="form-select" asp-for="SkillId">
+                        @foreach (var g in Model.Skills.GroupBy(s => s.Domain!.Name))
+                        {
+                            <optgroup label="@g.Key">
+                                @foreach (var s in g)
+                                {
+                                    <option value="@s.Id">@s.Name</option>
+                                }
+                            </optgroup>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Difficulty</label>
+                    <select class="form-select" asp-for="Difficulty" asp-items="Html.GetEnumSelectList<Difficulty>()"></select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Answer type</label>
+                    <select class="form-select" asp-for="Format" id="formatSel">
+                        <option value="MultipleChoice">Multiple choice</option>
+                        <option value="StudentProduced">Typed answer</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Passage (optional)</label>
+                <textarea class="form-control" asp-for="Passage" rows="4"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Question</label>
+                <textarea class="form-control" asp-for="Stem" rows="3"></textarea>
+            </div>
+            <div id="mcBlock">
+                @for (int i = 0; i < 4; i++)
+                {
+                    <div class="input-group mb-2">
+                        <span class="input-group-text">@("ABCD"[i])</span>
+                        <input class="form-control" name="Choices[@i]" value="@Model.Choices.ElementAtOrDefault(i)" />
+                    </div>
+                }
+            </div>
+            <div class="mb-3 mt-2">
+                <label class="form-label">Correct answer</label>
+                <input class="form-control" asp-for="CorrectAnswer" style="max-width:280px" />
+                <div class="form-text" id="answerHelp">A letter A–D. For typed answers, list every accepted form separated by <code>|</code>, e.g. <code>3/2|1.5</code>.</div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label">Explanation</label>
+                <textarea class="form-control" asp-for="Explanation" rows="5"></textarea>
+            </div>
+            <div class="d-flex gap-2">
+                <button class="btn btn-primary" type="submit">Save</button>
+                <a class="btn btn-outline-secondary" href="/Content">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        /** Shows the four choice boxes only for multiple-choice questions. */
+        class QuestionEditor {
+            /** Wires the answer-type select. */
+            static init() {
+                const sel = document.getElementById("formatSel");                     // Answer type select
+                const update = () => document.getElementById("mcBlock").style.display = sel.value === "MultipleChoice" ? "" : "none";
+                sel.addEventListener("change", update);
+                update();
+            }
+        }
+        QuestionEditor.init();
+    </script>
+}

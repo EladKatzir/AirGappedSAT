@@ -29,7 +29,8 @@ dotnet publish "$PROJECT" -c Release -r win-x64 --self-contained \
   -p:Version="$VERSION" -o "$STAGE" --nologo -v quiet
 
 echo "[3/4] Adding deployment helpers..."
-cp "$ROOT"/deploy/*.bat "$ROOT"/deploy/*.txt "$STAGE"/      # START_HERE.bat, UNBLOCK_FILES.bat, README.txt
+cp "$ROOT"/deploy/*.bat "$ROOT"/deploy/*.txt "$ROOT"/deploy/*.ps1 "$STAGE"/   # Installer, scripts, README
+for f in "$STAGE"/*.bat "$STAGE"/*.ps1 "$STAGE"/*.txt; do sed -i 's/\r*$/\r/' "$f"; done      # Windows line endings (cmd.exe needs CRLF)
 echo "$VERSION" > "$STAGE/VERSION.txt"
 ( cd "$STAGE" && find . -name '*.dll' -o -name '*.exe' | sort | xargs sha256sum > DLL_CHECKSUMS.txt )
 

@@ -64,8 +64,11 @@ public static class AppBootstrapper
                 o.SlidingExpiration = true;
             });
 
-        builder.Services.AddDbContext<AppDbContext>(o =>
-            o.UseSqlite(builder.Configuration.GetConnectionString("Default")));               // SQLite file
+        // A Windows Service starts in System32, so a relative "Data Source=satprep.db" is anchored to the app folder
+        var csb = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(builder.Configuration.GetConnectionString("Default"));
+        if (!Path.IsPathRooted(csb.DataSource) && csb.DataSource != ":memory:")
+            csb.DataSource = Path.Combine(AppContext.BaseDirectory, csb.DataSource);
+        builder.Services.AddDbContext<AppDbContext>(o => o.UseSqlite(csb.ToString()));       // SQLite file next to the exe
 
         // Application services
         builder.Services.AddSingleton<MasteryService>();             // Pure, stateless

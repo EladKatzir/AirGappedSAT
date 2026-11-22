@@ -25,6 +25,7 @@
   <ItemGroup>
     <!-- Question packs, vocabulary and lessons ship next to the exe (packs/vocab are imported on start-up) -->
     <Content Update="Content\**\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Remove="packages.lock.json" />                <!-- Build-time file, not needed on the server -->
     <None Include="Content\**\*.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 

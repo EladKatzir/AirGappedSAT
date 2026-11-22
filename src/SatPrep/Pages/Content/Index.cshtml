@@ -1,0 +1,124 @@
+@page
+@model SatPrep.Pages.Content.IndexModel
+@{
+    ViewData["Title"] = "Content";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Content</h1>
+        <p class="text-muted mb-0">Add question packs, fix or retire questions, and back up everyone's progress. @Model.Learners learner@(Model.Learners == 1 ? "" : "s") on this server.</p>
+    </div>
+    <a class="btn btn-primary" href="/Content/Edit">New question</a>
+</div>
+
+@if (Model.Message is not null)
+{
+    <div class="alert alert-info">@Model.Message</div>
+}
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-5">
+        <div class="card p-3 h-100">
+            <h2 class="h6">Question sources</h2>
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Pack</th><th class="text-end">Active</th><th class="text-end">Retired</th></tr></thead>
+                <tbody>
+                    @foreach (var s in Model.Sources)
+                    {
+                        <tr><td class="small">@s.Source.Split('|')[0].Trim()</td><td class="text-end">@s.Active</td><td class="text-end text-muted">@s.Retired</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card p-3 h-100">
+            <h2 class="h6">Add a question pack</h2>
+            <form method="post" enctype="multipart/form-data" asp-page-handler="Upload" class="mb-2">
+                <input class="form-control form-control-sm mb-2" type="file" name="pack" accept=".json" />
+                <button class="btn btn-sm btn-primary" type="submit">Upload &amp; import</button>
+            </form>
+            <p class="small text-muted mb-2">Format: see <code>Content/packs/README.md</code>. Uploads are saved into the packs folder, so they survive restarts and upgrades.</p>
+            <form method="post" asp-page-handler="Reimport">
+                <button class="btn btn-sm btn-outline-secondary" type="submit">Re-import packs folder</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-3">
+        <div class="card p-3 h-100">
+            <h2 class="h6">Backup</h2>
+            <p class="small text-muted">Downloads a copy of the database: all learners, answers and progress.</p>
+            <form method="post" asp-page-handler="Backup">
+                <button class="btn btn-sm btn-outline-primary" type="submit">Download backup</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<form method="get" class="card p-3 mb-3">
+    <div class="d-flex flex-wrap gap-2 filter-bar">
+        <input class="form-control w-auto" name="search" value="@Model.Search" placeholder="Search text or id" />
+        <select class="form-select w-auto" name="sort" onchange="this.form.submit()">
+            <option value="attempts" selected="@(Model.Sort == "attempts")">Most answered</option>
+            <option value="hardest" selected="@(Model.Sort == "hardest")">Lowest % correct</option>
+            <option value="easiest" selected="@(Model.Sort == "easiest")">Highest % correct</option>
+            <option value="flagged" selected="@(Model.Sort == "flagged")">Flagged / retired</option>
+            <option value="manual" selected="@(Model.Sort == "manual")">Edited here</option>
+        </select>
+        <button class="btn btn-outline-primary" type="submit">Filter</button>
+        <span class="ms-auto align-self-center small text-muted">@Model.Total questions</span>
+    </div>
+</form>
+
+<div class="card p-0">
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead><tr><th>Question</th><th>Skill</th><th></th><th class="text-end">Answers</th><th class="text-end">% correct</th><th></th></tr></thead>
+            <tbody>
+                @foreach (var r in Model.Rows)
+                {
+                    <tr class="@(r.Active ? "" : "opacity-50")">
+                        <td class="small" style="max-width:420px">
+                            @r.Preview
+                            @if (r.Suspicious) { <span class="badge text-bg-warning ms-1" title="Real accuracy doesn't match the difficulty label">check difficulty</span> }
+                            @if (r.Manual) { <span class="badge text-bg-secondary ms-1">edited</span> }
+                        </td>
+                        <td class="small">@r.Skill</td>
+                        <td><span class="pill pill-@r.Difficulty">@r.Difficulty</span></td>
+                        <td class="text-end small">@r.Attempts</td>
+                        <td class="text-end small">@(r.Attempts > 0 ? r.PctCorrect + "%" : "–")</td>
+                        <td class="text-end text-nowrap">
+                            <a class="btn btn-sm btn-link" href="/Practice?q=@r.Id&from=bank">View</a>
+                            <a class="btn btn-sm btn-outline-secondary" href="/Content/Edit/@r.Id">Edit</a>
+                            <form method="post" asp-page-handler="Toggle" class="d-inline">
+                                <input type="hidden" name="id" value="@r.Id" />
+                                <input type="hidden" name="search" value="@Model.Search" />
+                                <input type="hidden" name="sort" value="@Model.Sort" />
+                                <input type="hidden" name="p" value="@Model.PageNo" />
+                                <button class="btn btn-sm btn-link text-muted" type="submit">@(r.Active ? "Retire" : "Restore")</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@{
+    var pages = Math.Max(1, (Model.Total + 39) / 40);
+}
+@if (pages > 1)
+{
+    <nav class="mt-3">
+        <ul class="pagination pagination-sm flex-wrap">
+            @for (int i = 1; i <= pages; i++)
+            {
+                <li class="page-item @(i == Model.PageNo ? "active" : "")">
+                    <a class="page-link" href="/Content?search=@Uri.EscapeDataString(Model.Search ?? "")&sort=@Model.Sort&p=@i">@i</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}
