@@ -69,3 +69,14 @@ leaderboard, streak competitions, analytics extras.
 6. Content import/editor
 7. Windows Service installer + release build
 8. End-to-end verification, docs, release zip
+
+## 6. Status (2026-11-22): v1.0 complete
+
+All features in section 2 are built and verified:
+- 22 unit/service tests (grading, mastery, importer, full adaptive test: perfect run = 1600, blank module routes to the easier module 2)
+- Playwright smoke test (`tools/e2e/smoke.js`): 25/25 checks covering sign-in, plan, practice, mistakes, bank, lessons, vocab, short test with calculator, content page, phone layout, **zero JS errors and zero external requests**
+- Release zip `SatPrep-v1.0.0-win-x64.zip` (self-contained, about 48 MB) with the Windows Service installer. Checksums and installer scripts were parse-checked; **the installer itself still needs a first run on the real Windows server.**
+
+Open items:
+- Import College Board / Aniko / OnePrep content once it is available as an export (see CONTENT_SOURCES.md).
+- Hebrew UI (if wanted), following ShiftManager's localization approach.
