@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+build/out/
+packages/
+publish/
+
+# Runtime data (never commit learner data)
+*.db
+*.db-shm
+*.db-wal
+
+# IDE / OS
+.vs/
+.vscode/
+.idea/
+*.user
+.DS_Store
+Thumbs.db
+
+# Claude local settings
+.claude/settings.local.json
