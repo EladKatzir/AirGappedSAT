@@ -1,0 +1,170 @@
+@page "{id:int}"
+@model SatPrep.Pages.Tests.TakeModel
+@{
+    ViewData["Title"] = Model.Spec.Title;
+    ViewData["FullScreen"] = Model.Started;           // Hide the site nav while the clock runs
+    var isMath = Model.Spec.Section == SatSection.Math;
+}
+
+@if (!Model.Started)
+{
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card p-4 p-md-5 text-center">
+                @if (Model.BreakBefore)
+                {
+                    <div class="text-muted small mb-1">Break</div>
+                    <h1 class="h3 mb-2">Take a 10-minute break</h1>
+                    <p class="text-muted">Stretch, drink some water, and rest your eyes. Math starts when you press the button.</p>
+                    <div class="display-6 fw-bold mb-4" id="breakTimer">10:00</div>
+                }
+                <div class="text-muted small mb-1">@TestService.TypeName(Model.Test.Type) · module @Model.ModuleNumber of @Model.ModuleCount</div>
+                <h1 class="h4 mb-3">@Model.Spec.Title</h1>
+                <p class="mb-1"><strong>@Model.Spec.QuestionCount</strong> questions · <strong>@Model.Spec.Minutes</strong> minutes</p>
+                <p class="small text-muted mb-4">
+                    The timer starts when you press Start and keeps running if you leave the page.
+                    @if (isMath) { <span>A graphing calculator and the reference sheet are available.</span> }
+                    @if (Model.Spec.IsSecondModule) { <span>This module was chosen based on your module 1 results.</span> }
+                </p>
+                <form method="post" asp-page-handler="StartModule">
+                    <button class="btn btn-primary btn-lg px-5" type="submit" id="startModule">Start @(Model.BreakBefore ? "Math" : "module")</button>
+                </form>
+                <a class="small d-block mt-3 text-muted" href="/Tests">Exit (you can resume later)</a>
+            </div>
+        </div>
+    </div>
+    @if (Model.BreakBefore)
+    {
+        @section Scripts {
+            <script>
+                /** Counts down the optional 10-minute break (purely informational). */
+                class BreakTimer {
+                    /** Starts the countdown. */
+                    static init() {
+                        let left = 600;                                    // Seconds of break
+                        const el = document.getElementById("breakTimer");
+                        const id = setInterval(() => {
+                            left = Math.max(0, left - 1);
+                            el.textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+                            if (left === 0) clearInterval(id);
+                        }, 1000);
+                    }
+                }
+                BreakTimer.init();
+            </script>
+        }
+    }
+}
+else
+{
+    <div class="tp-header">
+        <div>
+            <div class="fw-semibold">@Model.Spec.Title</div>
+            <div class="small text-muted">@TestService.TypeName(Model.Test.Type)</div>
+        </div>
+        <div class="text-center">
+            <div class="tp-timer" id="timer">--:--</div>
+            <button class="btn btn-sm btn-link p-0 small" id="timerToggle" type="button">Hide</button>
+        </div>
+        <div class="d-flex gap-2">
+            @if (isMath)
+            {
+                <button class="btn btn-sm btn-outline-secondary" id="calcBtn" type="button">Calculator</button>
+                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#refModal" type="button">Reference</button>
+            }
+            else
+            {
+                <button class="btn btn-sm btn-outline-secondary" id="hlBtn" type="button" title="Select text in the passage, then click">Highlight</button>
+            }
+        </div>
+    </div>
+
+    <div class="tp-body @(isMath ? "single" : "")" id="tpBody">
+        @if (!isMath)
+        {
+            <div class="tp-left" id="passage"></div>
+        }
+        <div class="tp-right">
+            <div class="d-flex align-items-center gap-3 mb-3 pb-2 border-bottom">
+                <span class="tp-qnum" id="qNum">1</span>
+                <button class="btn btn-sm btn-link tp-mark p-0" id="markBtn" type="button">☆ Mark for review</button>
+                <button class="btn btn-sm btn-link p-0 ms-auto text-muted" id="elimToggle" type="button" title="Cross out answer choices">ABC̶ Eliminate</button>
+            </div>
+            @if (isMath)
+            {
+                <div class="q-passage d-none" id="passageInline"></div>
+            }
+            <div class="q-stem" id="stem"></div>
+            <div id="answers"></div>
+        </div>
+    </div>
+
+    <div class="tp-footer">
+        <div class="small text-muted d-none d-md-block">@User.Identity!.Name</div>
+        <button class="btn btn-dark btn-sm" id="navBtn" type="button">Question <span id="navLabel">1</span> of @Model.Spec.QuestionCount ▾</button>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" id="backBtn" type="button">Back</button>
+            <button class="btn btn-primary" id="nextBtn" type="button">Next</button>
+        </div>
+    </div>
+
+    @* Question navigator / review screen *@
+    <div class="modal fade" id="navModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title h5">@Model.Spec.Title: check your work</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="d-flex flex-wrap gap-3 small text-muted mb-3">
+                        <span><span class="badge bg-primary">&nbsp;</span> Answered</span>
+                        <span><span class="badge border border-secondary text-body">&nbsp;</span> Unanswered</span>
+                        <span><span class="badge bg-danger rounded-circle">&nbsp;</span> Marked for review</span>
+                        <span class="ms-auto" id="answeredCount"></span>
+                    </div>
+                    <div class="tp-nav-grid" id="navGrid"></div>
+                </div>
+                <div class="modal-footer">
+                    <span class="small text-muted me-auto">Unanswered questions count as wrong.</span>
+                    <form method="post" asp-page-handler="SubmitModule" id="submitForm">
+                        <button class="btn btn-primary" type="submit" id="submitModule">Submit module</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isMath)
+    {
+        <partial name="_ReferenceSheet" />
+        <div class="calc-panel" id="calcPanel">
+            <div class="calc-head" id="calcHead">
+                <span>Graphing calculator</span>
+                <span>
+                    <button class="btn btn-sm btn-link p-0 me-2" id="calcZoomIn" type="button" title="Zoom in">＋</button>
+                    <button class="btn btn-sm btn-link p-0 me-2" id="calcZoomOut" type="button" title="Zoom out">－</button>
+                    <button class="btn btn-sm btn-link p-0 me-2" id="calcReset" type="button" title="Reset view">⟲</button>
+                    <button class="btn-close btn-sm" id="calcClose" type="button"></button>
+                </span>
+            </div>
+            <div class="calc-exprs" id="calcExprs"></div>
+            <div class="calc-canvas-wrap"><canvas id="calcCanvas"></canvas></div>
+        </div>
+    }
+
+    @section Scripts {
+        <script src="~/lib/mathjs/math.min.js"></script>
+        <script src="~/js/calculator.js" asp-append-version="true"></script>
+        <script src="~/js/test-player.js" asp-append-version="true"></script>
+        <script>
+            // Boot the player with the server-rendered module data
+            TestPlayer.start({
+                testId: @Model.Test.Id,
+                secondsLeft: @Model.SecondsLeft,
+                isMath: @(isMath ? "true" : "false"),
+                items: @Html.Raw(Model.ItemsJson)
+            });
+        </script>
+    }
+}

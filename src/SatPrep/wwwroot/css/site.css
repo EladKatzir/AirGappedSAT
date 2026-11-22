@@ -177,7 +177,7 @@ mark.hl { background: #ffec99; color: inherit; padding: 0; }
 .calc-exprs { padding: 8px; border-bottom: 1px solid var(--sp-border); max-height: 190px; overflow: auto; }
 .calc-expr { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .calc-expr .swatch { flex: 0 0 12px; height: 12px; border-radius: 50%; }
-.calc-expr .out { font-size: .8rem; color: var(--sp-text-muted); min-width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
+.calc-expr .out { font-size: .8rem; color: var(--sp-text-muted); flex: 0 0 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 .calc-canvas-wrap { flex: 1; position: relative; }
 .calc-canvas-wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
 .refsheet img, .refsheet svg { max-width: 100%; }

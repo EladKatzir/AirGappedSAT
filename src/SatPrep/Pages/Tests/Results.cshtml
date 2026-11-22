@@ -1,0 +1,145 @@
+@page "{id:int}"
+@model SatPrep.Pages.Tests.ResultsModel
+@{
+    ViewData["Title"] = "Test results";
+    var t = Model.Test;
+    string RouteLabel(ModuleRoute r) => r == ModuleRoute.Upper ? "harder module 2" : r == ModuleRoute.Lower ? "easier module 2" : "";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+    <div>
+        <div class="small text-muted">@TestService.TypeName(t.Type) · @t.CompletedUtc!.Value.ToLocalTime().ToString("ddd d MMM yyyy, HH:mm")</div>
+        <h1 class="h3 mb-0">Your results</h1>
+    </div>
+    <div>
+        <a class="btn btn-outline-primary" href="/Practice?mode=Incorrect">Practice what you missed</a>
+        <a class="btn btn-primary" href="/Tests">Back to tests</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    @if (t.TotalScore is int total)
+    {
+        <div class="col-md-4">
+            <div class="card stat h-100">
+                <div class="label">Total score (estimate)</div>
+                <div class="value">@total</div>
+                <div class="sub">out of 1600</div>
+            </div>
+        </div>
+    }
+    @if (t.RwScore is int rw)
+    {
+        <div class="col-md-4">
+            <div class="card stat h-100">
+                <div class="label">Reading and Writing</div>
+                <div class="value">@rw</div>
+                <div class="sub">200–800@(t.RwRoute == ModuleRoute.None ? "" : " · " + RouteLabel(t.RwRoute))</div>
+            </div>
+        </div>
+    }
+    @if (t.MathScore is int math)
+    {
+        <div class="col-md-4">
+            <div class="card stat h-100">
+                <div class="label">Math</div>
+                <div class="value">@math</div>
+                <div class="sub">200–800@(t.MathRoute == ModuleRoute.None ? "" : " · " + RouteLabel(t.MathRoute))</div>
+            </div>
+        </div>
+    }
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card p-4 h-100">
+            <h2 class="h5 mb-3">By domain <span class="small text-muted fw-normal">· @Model.Correct / @Model.Total correct</span></h2>
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>Domain</th><th class="text-end">Correct</th><th style="width:35%"></th><th class="text-end">Avg time</th></tr></thead>
+                <tbody>
+                    @foreach (var d in Model.Domains)
+                    {
+                        var pct = d.Total == 0 ? 0 : 100 * d.Correct / d.Total;
+                        var pace = SatPrep.Pages.Tests.ResultsModel.PaceSeconds[d.Section];
+                        <tr>
+                            <td class="small">@d.Domain</td>
+                            <td class="text-end small">@d.Correct/@d.Total</td>
+                            <td><div class="mbar lvl-@(pct >= 85 ? "Mastered" : pct >= 70 ? "Proficient" : pct >= 50 ? "Familiar" : "Learning")"><span style="width:@pct%"></span></div></td>
+                            <td class="text-end small @(d.AvgSeconds > pace * 1.3 ? "text-danger" : "")">@((int)d.AvgSeconds)s</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <div class="small text-muted mt-2">Pace on the real test: about 71 s per R&amp;W question and 95 s per Math question.</div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card p-4 h-100">
+            <h2 class="h5 mb-3">Time per question</h2>
+            <div style="height:240px"><canvas id="timeChart"></canvas></div>
+            <div class="small text-muted mt-2">Green = correct, red = wrong. The dashed line is SAT pace.</div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h5 mb-0">Question review</h2>
+    <div class="btn-group btn-group-sm">
+        <a class="btn @(!Model.WrongOnly ? "btn-primary" : "btn-outline-primary")" href="/Tests/Results/@t.Id">All</a>
+        <a class="btn @(Model.WrongOnly ? "btn-primary" : "btn-outline-primary")" href="/Tests/Results/@t.Id?wrongOnly=true">Wrong only</a>
+    </div>
+</div>
+
+<div class="accordion" id="review">
+    @foreach (var r in Model.Review)
+    {
+        var cid = $"q{r.Item.Id}";
+        <div class="accordion-item">
+            <h3 class="accordion-header">
+                <button class="accordion-button collapsed gap-3" type="button" data-bs-toggle="collapse" data-bs-target="#@cid">
+                    <span class="@(r.Item.IsCorrect ? "text-success" : "text-danger") fw-bold">@(r.Item.IsCorrect ? "✓" : "✗")</span>
+                    <span class="small text-muted text-nowrap">@Model.Plan[r.Module].Title · Q@(r.Order)</span>
+                    <span class="small">@r.Card.Question.Skill!.Name</span>
+                    <span class="pill pill-@r.Card.Question.Difficulty ms-auto me-2">@r.Card.Question.Difficulty</span>
+                    <span class="small text-muted">@r.Item.SecondsSpent s</span>
+                </button>
+            </h3>
+            <div id="@cid" class="accordion-collapse collapse" data-bs-parent="#review">
+                <div class="accordion-body">
+                    <partial name="_QuestionCard" model="r.Card" />
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script src="~/lib/chartjs/chart.umd.min.js"></script>
+    <script>
+        /** Draws the per-question timing chart (bars coloured by correctness, dashed pace line). */
+        class TimingChart {
+            /** @@param {Array} data - [{label, seconds, correct, pace}] */
+            static draw(data) {
+                const style = getComputedStyle(document.documentElement);           // Read theme tokens
+                const good = style.getPropertyValue("--sp-good").trim(), bad = style.getPropertyValue("--sp-bad").trim();
+                new Chart(document.getElementById("timeChart"), {
+                    data: {
+                        labels: data.map(d => d.label),
+                        datasets: [
+                            { type: "bar", label: "Seconds", data: data.map(d => d.seconds), backgroundColor: data.map(d => d.correct ? good : bad), borderRadius: 2 },
+                            { type: "line", label: "SAT pace", data: data.map(d => d.pace), borderColor: "#888", borderDash: [5, 4], pointRadius: 0, borderWidth: 1.5 }
+                        ]
+                    },
+                    options: {
+                        maintainAspectRatio: false, animation: false,
+                        plugins: { legend: { display: false } },
+                        scales: { x: { ticks: { maxTicksLimit: 12 } }, y: { beginAtZero: true, title: { display: true, text: "seconds" } } }
+                    }
+                });
+            }
+        }
+        TimingChart.draw(@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.ChartData())));
+        // Typeset math when a review panel opens (hidden panels are typeset too, but this covers late content)
+        document.getElementById("review").addEventListener("shown.bs.collapse", e => SatPrepPage.renderMath(e.target));
+    </script>
+}

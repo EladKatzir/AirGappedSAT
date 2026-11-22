@@ -1,0 +1,78 @@
+@page
+@model SatPrep.Pages.Tests.IndexModel
+@{
+    ViewData["Title"] = "Practice tests";
+    // Card definitions: type, title, description, total minutes
+    var types = new[]
+    {
+        (TestType.Full, "Full-length SAT", "Reading and Writing (2 × 27 questions) and Math (2 × 22), adaptive second modules, 10-minute break.", "2 h 24 min"),
+        (TestType.ReadingWriting, "Reading and Writing", "Both adaptive R&W modules: 54 questions.", "64 min"),
+        (TestType.Math, "Math", "Both adaptive Math modules: 44 questions, calculator and reference sheet included.", "70 min"),
+        (TestType.Short, "Short test", "One half-length module per section (25 questions). Good for a quick check.", "35 min"),
+    };
+}
+
+<h1 class="h3 mb-1">Practice tests</h1>
+<p class="text-muted">Timed tests that work like the digital SAT: how well you do on module 1 decides whether module 2 is harder or easier.
+    Every answer also updates your skill mastery.</p>
+
+<div class="row g-3 mb-4">
+    @foreach (var (type, title, desc, time) in types)
+    {
+        <div class="col-md-6 col-xl-3">
+            <div class="card p-3 h-100 @(Model.Start == type ? "border-primary border-2" : "")">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <h2 class="h6 mb-0">@title</h2>
+                    <span class="pill">@time</span>
+                </div>
+                <p class="small text-muted flex-grow-1">@desc</p>
+                <form method="post" asp-page-handler="Start">
+                    <input type="hidden" name="type" value="@type" />
+                    <button class="btn @(Model.Start == type ? "btn-primary" : "btn-outline-primary") w-100" type="submit">Start</button>
+                </form>
+            </div>
+        </div>
+    }
+</div>
+
+<h2 class="h5 mb-3">Your tests</h2>
+@if (!Model.History.Any())
+{
+    <div class="card p-4 text-center text-muted">No tests yet. Start with a short test to get a baseline score.</div>
+}
+else
+{
+    <div class="card p-0">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Date</th><th>Test</th><th class="text-end">R&amp;W</th><th class="text-end">Math</th><th class="text-end">Total</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var t in Model.History)
+                    {
+                        <tr>
+                            <td class="small">@t.StartedUtc.ToLocalTime().ToString("ddd d MMM yyyy, HH:mm")</td>
+                            <td>@TestService.TypeName(t.Type)</td>
+                            <td class="text-end">@(t.RwScore?.ToString() ?? "–")</td>
+                            <td class="text-end">@(t.MathScore?.ToString() ?? "–")</td>
+                            <td class="text-end fw-semibold">@(t.TotalScore?.ToString() ?? "–")</td>
+                            <td class="text-end text-nowrap">
+                                @if (t.Status == TestStatus.Completed)
+                                {
+                                    <a class="btn btn-sm btn-outline-primary" href="/Tests/Results/@t.Id">Results</a>
+                                }
+                                else
+                                {
+                                    <a class="btn btn-sm btn-primary" href="/Tests/Take/@t.Id">Resume</a>
+                                    <form method="post" asp-page-handler="Abandon" class="d-inline" onsubmit="return confirm('Abandon this test?')">
+                                        <input type="hidden" name="id" value="@t.Id" />
+                                        <button class="btn btn-sm btn-link text-muted" type="submit">Abandon</button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}

@@ -18,7 +18,7 @@ public class ContentImporterTests : IDisposable
         _conn = new SqliteConnection("Data Source=:memory:");
         _conn.Open();                                                         // In-memory DB lives as long as the connection
         _db = new AppDbContext(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_conn).Options);
-        _db.Database.EnsureCreated();                                         // Build schema
+        _db.Database.Migrate();                                               // Build schema (same as production)
         SatTaxonomy.EnsureSeeded(_db);                                        // 8 domains / 29 skills
     }
 

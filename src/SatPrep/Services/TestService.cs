@@ -177,7 +177,8 @@ public class TestService
         test.Status = TestStatus.Completed;
         test.CompletedUtc = DateTime.UtcNow;
 
-        var all = _db.TestItems.Local.Where(i => i.TestAttemptId == test.Id).ToList(); // Tracked items (all modules)
+        // All items of every module (tracked instances keep this module's unsaved grading)
+        var all = _db.TestItems.Include(i => i.Question).Where(i => i.TestAttemptId == test.Id).ToList();
         var plan = ModulePlan(test.Type);
 
         int? Section(SatSection s, ModuleRoute route)
