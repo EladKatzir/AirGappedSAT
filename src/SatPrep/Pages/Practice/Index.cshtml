@@ -139,7 +139,7 @@ else
                     {
                         <partial name="_QuestionCard" model="Model.Card" />
                         <div class="d-flex justify-content-between align-items-center mt-4">
-                            <a class="small" href="/Study/Lesson/@Model.Card.Question.Skill!.Domain!.Code#@Model.Card.Question.Skill.Code">Study this skill</a>
+                            <a class="small" href="/Study/Lesson/@Model.Card.Question.Skill!.Domain!.Code#@LessonService.Anchor(Model.Card.Question.Skill.Code)">Study this skill</a>
                             @if (Model.HasFilter)
                             {
                                 <a class="btn btn-primary px-4" href="@Model.NextUrl()" id="nextBtn" autofocus>Next question →</a>

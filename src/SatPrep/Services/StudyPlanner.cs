@@ -100,7 +100,7 @@ public class StudyPlanner
             if (s.Attempts == 0)                                                         // Never practised: read first
             {
                 tasks.Add(new PlanTask($"Read: {s.Name}", $"Short lesson on a skill you have not started ({s.DomainName}).",
-                    $"/Study/Lesson/{s.DomainCode}#{s.Code}", 8, false, "lesson"));
+                    $"/Study/Lesson/{s.DomainCode}#{LessonService.Anchor(s.Code)}", 8, false, "lesson"));
                 used += 8;
             }
             int doneN = todayBySkill.GetValueOrDefault(s.SkillId);

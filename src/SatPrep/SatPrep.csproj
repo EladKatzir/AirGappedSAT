@@ -23,9 +23,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Question packs ship next to the exe and are imported on start-up -->
-    <Content Update="Content\packs\**\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <None Include="Content\packs\**\*.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <!-- Question packs, vocabulary and lessons ship next to the exe (packs/vocab are imported on start-up) -->
+    <Content Update="Content\**\*.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="Content\**\*.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

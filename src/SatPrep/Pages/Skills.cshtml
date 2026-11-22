@@ -54,7 +54,7 @@
                             <div class="hide-sm"><div class="mbar"><span style="width:@(s.Percent)%"></span></div></div>
                             <div class="hide-sm"><span class="lvl-badge">@s.Level</span> <span class="small ms-1">@(s.Attempts > 0 ? s.Percent + "%" : "")</span></div>
                             <div class="text-end text-nowrap">
-                                <a class="btn btn-sm btn-link" href="/Study/Lesson/@s.DomainCode#@s.Code">Study</a>
+                                <a class="btn btn-sm btn-link" href="/Study/Lesson/@s.DomainCode#@LessonService.Anchor(s.Code)">Study</a>
                                 <a class="btn btn-sm btn-primary" href="/Practice?skill=@s.SkillId">Practice</a>
                             </div>
                         </div>

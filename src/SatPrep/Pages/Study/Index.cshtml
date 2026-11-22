@@ -1,0 +1,37 @@
+@page
+@model SatPrep.Pages.Study.IndexModel
+@{
+    ViewData["Title"] = "Study";
+}
+
+<h1 class="h3 mb-1">Study</h1>
+<p class="text-muted">Short lessons for every domain with strategies, worked examples and common traps, plus vocabulary flashcards.</p>
+
+<div class="card p-4 mb-4">
+    <div class="d-flex flex-wrap align-items-center gap-3">
+        <div class="flex-grow-1">
+            <h2 class="h5 mb-1">Vocabulary flashcards</h2>
+            <div class="text-muted small">@Model.VocabKnown of @Model.VocabTotal words learned · @Model.VocabDue ready to review</div>
+            <div class="mbar mt-2 lvl-Mastered" style="max-width:360px"><span style="width:@(Model.VocabTotal == 0 ? 0 : 100 * Model.VocabKnown / Model.VocabTotal)%"></span></div>
+        </div>
+        <a class="btn btn-outline-primary" href="/Study/Vocab?view=list">Word list</a>
+        <a class="btn btn-primary" href="/Study/Vocab">Study flashcards</a>
+    </div>
+</div>
+
+@foreach (var section in Model.Lessons.GroupBy(l => l.Section))
+{
+    <h2 class="h5 mt-4 mb-3">@(section.Key)</h2>
+    <div class="row g-3">
+        @foreach (var l in section)
+        {
+            <div class="col-md-6 col-lg-3">
+                <a class="card p-3 h-100 text-reset text-decoration-none" href="/Study/Lesson/@l.Code">
+                    <div class="fw-semibold mb-1">@l.Title</div>
+                    <div class="small text-muted mb-2">@l.Skills skills · @(l.Started ? $"{l.Avg}% avg mastery" : "not started")</div>
+                    <div class="mbar mt-auto lvl-@(l.Avg >= 85 ? "Mastered" : l.Avg >= 70 ? "Proficient" : l.Avg >= 50 ? "Familiar" : l.Started ? "Learning" : "NotStarted")"><span style="width:@(l.Avg)%"></span></div>
+                </a>
+            </div>
+        }
+    </div>
+}

@@ -1,0 +1,101 @@
+@page
+@model SatPrep.Pages.Study.VocabModel
+@{
+    ViewData["Title"] = "Vocabulary";
+    string[] boxNames = { "New / learning", "1 day", "3 days", "7 days", "Learned" };   // Leitner box labels
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Vocabulary</h1>
+        <p class="text-muted mb-0">@Model.LearnedCount words learned. Cards you know come back less often; cards you miss come back soon.</p>
+    </div>
+    <div>
+        @if (Model.View == "list")
+        {
+            <a class="btn btn-primary" href="/Study/Vocab">Study flashcards</a>
+        }
+        else
+        {
+            <a class="btn btn-outline-primary" href="/Study/Vocab?view=list">Word list</a>
+        }
+    </div>
+</div>
+
+@if (Model.View == "list")
+{
+    <div class="card p-0">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead><tr><th>Word</th><th>Definition</th><th class="d-none d-md-table-cell">Example</th><th>Status</th></tr></thead>
+                <tbody>
+                    @foreach (var (w, box) in Model.All)
+                    {
+                        <tr>
+                            <td><strong>@w.Word</strong> <span class="text-muted small fst-italic">@w.PartOfSpeech</span></td>
+                            <td class="small">@w.Definition</td>
+                            <td class="small text-muted d-none d-md-table-cell">@w.Example</td>
+                            <td class="small text-nowrap">@(box < 0 ? "–" : boxNames[box])</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else if (Model.Card is null)
+{
+    <div class="card p-5 text-center">
+        <h2 class="h5">All caught up!</h2>
+        <p class="text-muted">No cards are due right now. Come back later or browse the word list.</p>
+    </div>
+}
+else
+{
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="small text-muted text-center mb-2">@Model.DueCount card@(Model.DueCount == 1 ? "" : "s") to review · box: @boxNames[Model.CardBox]</div>
+            <div class="flashcard mb-3" id="card" tabindex="0" title="Click or press Space to flip">
+                <div class="flashcard-inner">
+                    <div class="flash-face">
+                        <div class="display-6 fw-semibold mb-2">@Model.Card.Word</div>
+                        <div class="text-muted fst-italic">@Model.Card.PartOfSpeech</div>
+                        <div class="small text-muted mt-4">Think of the meaning, then click to flip</div>
+                    </div>
+                    <div class="flash-face flash-back">
+                        <div class="fw-semibold mb-2">@Model.Card.Word <span class="text-muted fst-italic fw-normal">(@Model.Card.PartOfSpeech)</span></div>
+                        <div class="fs-5 mb-3">@Model.Card.Definition</div>
+                        <div class="text-muted small">“@Model.Card.Example”</div>
+                    </div>
+                </div>
+            </div>
+            <form method="post" asp-page-handler="Review" class="d-flex gap-2 justify-content-center" id="answerRow" style="visibility:hidden">
+                <input type="hidden" name="wordId" value="@Model.Card.Id" />
+                <button class="btn btn-outline-danger btn-lg flex-fill" name="knew" value="false" type="submit">Still learning</button>
+                <button class="btn btn-success btn-lg flex-fill" name="knew" value="true" type="submit">Knew it</button>
+            </form>
+        </div>
+    </div>
+
+    @section Scripts {
+        <script>
+            /** Flip interaction for the flashcard (click / Space), then reveal the answer buttons. */
+            class Flashcard {
+                /** Wires click and keyboard events. */
+                static init() {
+                    const card = document.getElementById("card");        // Card element
+                    const row = document.getElementById("answerRow");    // Knew it / still learning buttons
+                    const flip = () => { card.classList.toggle("flipped"); row.style.visibility = "visible"; };
+                    card.addEventListener("click", flip);
+                    document.addEventListener("keydown", e => {
+                        if (e.code === "Space") { e.preventDefault(); flip(); }
+                        if (row.style.visibility === "visible" && (e.key === "1" || e.key === "2"))
+                            row.querySelectorAll("button")[Number(e.key) - 1].click(); // 1 = still learning, 2 = knew it
+                    });
+                    card.focus();
+                }
+            }
+            Flashcard.init();
+        </script>
+    }
+}

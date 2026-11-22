@@ -62,13 +62,19 @@ public class LessonService
             var code = Path.GetFileNameWithoutExtension(file).ToUpperInvariant();            // ALG.md -> ALG
             var title = Regex.Match(md, @"^#\s+(.+)$", RegexOptions.Multiline).Groups[1].Value.Trim();
             var skills = Regex.Matches(md, @"\{#([A-Z]{3}\.[A-Z0-9]+)\}").Select(m => m.Groups[1].Value).ToList();
-            _lessons[code] = new Lesson(code, title, Md.Render(md), skills);
+            // Markdig would read "{#ALG.LF}" as id "ALG" + class "LF", so anchors use dashes: "{#ALG-LF}"
+            var html = Md.Render(Regex.Replace(md, @"\{#([A-Z]{3})\.([A-Z0-9]+)\}", "{#$1-$2}"));
+            _lessons[code] = new Lesson(code, title, html, skills);
         }
     }
 
     /// <summary>Lesson for a domain, or null.</summary>
     /// <param name="domainCode">Domain code.</param>
     public Lesson? Get(string domainCode) => _lessons.GetValueOrDefault(domainCode);
+
+    /// <summary>HTML anchor id for a skill section ("ALG.LF" -> "ALG-LF").</summary>
+    /// <param name="skillCode">Skill code.</param>
+    public static string Anchor(string skillCode) => skillCode.Replace('.', '-');
 
     /// <summary>All loaded lessons.</summary>
     public IEnumerable<Lesson> All => _lessons.Values;

@@ -1,0 +1,56 @@
+@page "{code}"
+@model SatPrep.Pages.Study.LessonModel
+@{
+    ViewData["Title"] = Model.Lesson!.Title;
+    var domainId = Model.Skills.FirstOrDefault()?.DomainId;
+}
+
+<div class="row g-4">
+    <div class="col-lg-3 order-lg-2">
+        <div class="card p-3 position-sticky" style="top:16px">
+            <div class="small text-muted mb-2">In this lesson</div>
+            <nav class="toc">
+                @foreach (var s in Model.Skills)
+                {
+                    <div class="d-flex align-items-center gap-2 lvl-@s.Level">
+                        <a class="flex-grow-1" href="#@LessonService.Anchor(s.Code)">@s.Name</a>
+                        <span class="small text-muted">@(s.Attempts > 0 ? s.Percent + "%" : "")</span>
+                    </div>
+                }
+            </nav>
+            <hr />
+            @if (domainId is int d)
+            {
+                <a class="btn btn-primary w-100 mb-2" href="/Practice?domain=@d">Practice this domain</a>
+            }
+            <a class="btn btn-outline-secondary w-100" href="/Study">All lessons</a>
+        </div>
+    </div>
+    <div class="col-lg-9 order-lg-1">
+        <article class="card p-4 p-md-5 lesson" id="lesson">
+            @Html.Raw(Model.Lesson.Html)
+        </article>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        /** Adds a "Practice this skill" button under every skill heading of the lesson. */
+        class LessonPage {
+            /** Inserts buttons using the skill list rendered by the server. */
+            static init() {
+                const skills = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Skills.Select(s => new { anchor = LessonService.Anchor(s.Code), id = s.SkillId, pct = s.Percent, attempts = s.Attempts })));
+                skills.forEach(s => {
+                    const h = document.getElementById(s.anchor);       // The skill's <h2>
+                    if (!h) return;
+                    const bar = document.createElement("div");          // Button row
+                    bar.className = "d-flex align-items-center gap-2 mb-3 mt-n1";
+                    bar.innerHTML = `<a class="btn btn-sm btn-primary" href="/Practice?skill=${s.id}">Practice this skill</a>` +
+                        `<span class="small text-muted">${s.attempts > 0 ? "Your mastery: " + s.pct + "%" : "Not practised yet"}</span>`;
+                    h.after(bar);
+                });
+            }
+        }
+        LessonPage.init();
+    </script>
+}
