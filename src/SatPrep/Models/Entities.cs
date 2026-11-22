@@ -43,6 +43,31 @@ public enum AttemptSource
     Review = 2        // Re-doing a previously missed question
 }
 
+/// <summary>Kinds of practice test a learner can start.</summary>
+public enum TestType
+{
+    Full = 0,           // R&W (2 modules) + break + Math (2 modules), adaptive
+    ReadingWriting = 1, // R&W section only (2 modules), adaptive
+    Math = 2,           // Math section only (2 modules), adaptive
+    Short = 3           // One R&W module + one Math module, no adaptation
+}
+
+/// <summary>Lifecycle of a practice test attempt.</summary>
+public enum TestStatus
+{
+    InProgress = 0, // Learner is still taking it
+    Completed = 1,  // All modules submitted and scored
+    Abandoned = 2   // Learner gave up / deleted it
+}
+
+/// <summary>Which version of module 2 the learner was routed to.</summary>
+public enum ModuleRoute
+{
+    None = 0,  // Not decided yet / not adaptive
+    Lower = 1, // Easier second module (score ceiling ~600)
+    Upper = 2  // Harder second module (score ceiling 800)
+}
+
 /// <summary>A content domain such as "Information and Ideas" or "Algebra".</summary>
 public class Domain
 {
@@ -82,17 +107,19 @@ public class Question
     public string Explanation { get; set; } = "";        // Full worked explanation shown after answering
     public string Source { get; set; } = "";             // Content pack name / attribution (who wrote it, licence)
     public bool IsActive { get; set; } = true;           // Lets an admin retire a bad question without deleting history
+    public bool IsManual { get; set; }                   // Created/edited in the admin editor (re-imports never overwrite it)
 }
 
-/// <summary>A learner account. Kept minimal; auth mirrors ShiftManager's cookie login.</summary>
+/// <summary>
+/// A learner. No passwords by design: the learner just enters a name and
+/// everything they do is remembered under it (closed, trusted network).
+/// </summary>
 public class AppUser
 {
     public int Id { get; set; }                          // Primary key
-    public string UserName { get; set; } = "";           // Login name
-    public string DisplayName { get; set; } = "";        // Name shown in UI
-    public string PasswordHash { get; set; } = "";       // PBKDF2 hash (never store plain text)
-    public bool IsAdmin { get; set; }                    // Admins can import content and see all learners
-    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow; // Account creation time
+    public string UserName { get; set; } = "";           // The name typed on the start screen (unique, case-insensitive)
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow; // First time this name was used
+    public DateTime? LastSeenUtc { get; set; }           // Last time this name signed in
 }
 
 /// <summary>One answer submitted by a user to one question.</summary>
@@ -126,3 +153,101 @@ public class SkillMastery
     public int HardCorrectCount { get; set; }            // Correct answers on Hard questions (gate for "Mastered")
     public DateTime LastPracticedUtc { get; set; }       // Last time this skill was practised
 }
+
+/// <summary>A question the learner bookmarked / marked for review.</summary>
+public class QuestionMark
+{
+    public int Id { get; set; }                          // Primary key
+    public int UserId { get; set; }                      // Owner
+    public int QuestionId { get; set; }                  // Marked question
+    public Question? Question { get; set; }              // Question navigation
+    public string? Note { get; set; }                    // Optional personal note
+    public DateTime CreatedUtc { get; set; } = DateTime.UtcNow; // When it was marked
+}
+
+/// <summary>
+/// Spaced-repetition entry: a missed question that should come back later.
+/// Stage 0 -> due after 1 day, 1 -> 3 days, 2 -> 7 days, then retired.
+/// </summary>
+public class ReviewItem
+{
+    public int Id { get; set; }                          // Primary key
+    public int UserId { get; set; }                      // Owner
+    public int QuestionId { get; set; }                  // Question to review
+    public Question? Question { get; set; }              // Question navigation
+    public int Stage { get; set; }                       // Current interval stage
+    public DateTime DueUtc { get; set; }                 // When it is next due
+    public bool IsRetired { get; set; }                  // True once answered correctly at the last stage
+}
+
+/// <summary>One practice test taken by a user.</summary>
+public class TestAttempt
+{
+    public int Id { get; set; }                          // Primary key
+    public int UserId { get; set; }                      // Who is taking it
+    public TestType Type { get; set; }                   // Full / section / short
+    public TestStatus Status { get; set; }               // In progress / completed
+    public int CurrentModule { get; set; }               // Index into the module plan (0-based)
+    public DateTime StartedUtc { get; set; } = DateTime.UtcNow;   // Start time
+    public DateTime? ModuleStartedUtc { get; set; }      // When the current module's clock started
+    public DateTime? CompletedUtc { get; set; }          // Finish time
+    public ModuleRoute RwRoute { get; set; }             // Routing decision for R&W module 2
+    public ModuleRoute MathRoute { get; set; }           // Routing decision for Math module 2
+    public int? RwScore { get; set; }                    // Scaled 200-800 (null if section not taken)
+    public int? MathScore { get; set; }                  // Scaled 200-800 (null if section not taken)
+    public int? TotalScore { get; set; }                 // Sum of section scores (full test only)
+    public List<TestItem> Items { get; set; } = new();   // All questions in the test
+}
+
+/// <summary>One question slot inside a practice test.</summary>
+public class TestItem
+{
+    public int Id { get; set; }                          // Primary key
+    public int TestAttemptId { get; set; }               // Parent test
+    public TestAttempt? TestAttempt { get; set; }        // Parent navigation
+    public int ModuleIndex { get; set; }                 // Which module (0-based in the module plan)
+    public int Order { get; set; }                       // Position inside the module (1-based, as shown to the learner)
+    public int QuestionId { get; set; }                  // The question
+    public Question? Question { get; set; }              // Question navigation
+    public string GivenAnswer { get; set; } = "";        // Learner's answer ("" = blank, counts as wrong)
+    public bool IsCorrect { get; set; }                  // Graded when the module is submitted
+    public bool IsMarked { get; set; }                   // "Mark for review" flag inside the test
+    public int SecondsSpent { get; set; }                // Time spent on this question
+    public string EliminatedJson { get; set; } = "[]";   // Choices crossed out with the answer eliminator
+}
+
+/// <summary>A vocabulary word with definition and example.</summary>
+public class VocabWord
+{
+    public int Id { get; set; }                          // Primary key
+    public string Word { get; set; } = "";               // The word
+    public string PartOfSpeech { get; set; } = "";       // noun / verb / adjective ...
+    public string Definition { get; set; } = "";         // Short definition
+    public string Example { get; set; } = "";            // Example sentence using the word
+}
+
+/// <summary>Leitner-box flashcard progress for one user and one word.</summary>
+public class VocabProgress
+{
+    public int Id { get; set; }                          // Primary key
+    public int UserId { get; set; }                      // Owner
+    public int VocabWordId { get; set; }                 // Word
+    public VocabWord? VocabWord { get; set; }            // Word navigation
+    public int Box { get; set; }                         // Leitner box 0-4 (4 = known)
+    public DateTime NextDueUtc { get; set; }             // When the card is due again
+    public int TimesSeen { get; set; }                   // Total reviews
+    public int TimesCorrect { get; set; }                // Reviews marked "knew it"
+    public DateTime? LastReviewedUtc { get; set; }       // Last time the card was reviewed (daily plan tick-off)
+}
+
+/// <summary>A learner's study-plan settings (one per user).</summary>
+public class StudyPlan
+{
+    public int Id { get; set; }                          // Primary key
+    public int UserId { get; set; }                      // Owner
+    public DateTime TestDate { get; set; }               // Target SAT date
+    public int TargetScore { get; set; }                 // Goal, 400-1600
+    public int MinutesPerDay { get; set; }               // Daily time budget
+    public int PracticeTestDay { get; set; } = 6;        // Day of week for the weekly practice test (0=Sunday)
+}
+

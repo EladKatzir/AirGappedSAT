@@ -1,0 +1,85 @@
+@model SatPrep.Pages.Shared.QuestionCardModel
+@*
+    Renders one question for practice / review.
+    - Before answering: choices are radio buttons inside the surrounding <form>.
+    - After answering (Model.Answered): shows correct/wrong colouring, the
+      result banner, mastery change and the full explanation.
+*@
+@{
+    var q = Model.Question;                                          // Question being shown
+    var letters = new[] { "A", "B", "C", "D" };                      // Choice labels
+    var choices = Model.Choices;                                     // Parsed choice texts
+}
+
+<div class="d-flex flex-wrap gap-2 align-items-center mb-3 q-meta">
+    <span>@q.Skill?.Domain?.Name</span><span>·</span><span>@q.Skill?.Name</span>
+    <span class="pill pill-@q.Difficulty">@q.Difficulty</span>
+    @if (Model.ShowMarkButton)
+    {
+        <button type="button" data-mark="@q.Id" data-marked="@(Model.IsMarked ? "1" : "0")"
+                class="btn btn-sm btn-link p-0 ms-auto mark-btn @(Model.IsMarked ? "text-warning" : "text-muted")" title="Bookmark this question">
+            @(Model.IsMarked ? "★ Marked" : "☆ Mark for review")
+        </button>
+    }
+</div>
+
+@if (!string.IsNullOrWhiteSpace(q.Passage))
+{
+    <div class="q-passage">@Html.Raw(Md.Render(q.Passage))</div>
+}
+<div class="q-stem">@Html.Raw(Md.Render(q.Stem))</div>
+
+@if (Model.Answered)
+{
+    <div class="result-banner @(Model.IsCorrect ? "good" : "bad")">
+        @(Model.IsCorrect ? "Correct!" : "Not quite.")
+        @if (Model.MasteryAfter is int after && Model.MasteryBefore is int before)
+        {
+            var delta = after - before;
+            <span class="fw-normal ms-2">Skill mastery @after% (@(delta >= 0 ? "+" : "")@delta)</span>
+        }
+    </div>
+}
+
+@if (q.Format == AnswerFormat.MultipleChoice)
+{
+    @for (int i = 0; i < choices.Count && i < 4; i++)
+    {
+        var letter = letters[i];
+        var css = "";
+        if (Model.Answered)
+        {
+            if (letter == q.CorrectAnswer.Trim().ToUpperInvariant()) css = "correct";
+            else if (letter == Model.Given?.ToUpperInvariant()) css = "wrong";
+        }
+        <label class="choice @css" @(Model.Answered ? "disabled" : "")>
+            @if (!Model.Answered)
+            {
+                <input type="radio" name="answer" value="@letter" required />
+            }
+            <span class="letter">@letter</span>
+            <span class="ctext">@Html.Raw(Md.RenderInline(choices[i]))</span>
+        </label>
+    }
+}
+else
+{
+    @if (Model.Answered)
+    {
+        <p class="mb-2">Your answer: <strong>@(string.IsNullOrEmpty(Model.Given) ? "(blank)" : Model.Given)</strong>
+            · Correct answer: <strong>@q.CorrectAnswer.Replace("|", " or ")</strong></p>
+    }
+    else
+    {
+        <label class="form-label small text-muted">Type your answer (a number, fraction like 3/2, or decimal)</label>
+        <input class="form-control spr-input mb-3" name="answer" autocomplete="off" required autofocus />
+    }
+}
+
+@if (Model.Answered)
+{
+    <div class="explanation mt-3">
+        <div class="fw-semibold mb-1">Explanation</div>
+        @Html.Raw(Md.Render(q.Explanation))
+    </div>
+}

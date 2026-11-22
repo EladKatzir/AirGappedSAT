@@ -1,37 +1,127 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Skill map";
+    ViewData["Title"] = "Today";
+    var plan = Model.Plan;                                                     // Today's plan
+    var weakest = Model.Skills.Where(s => s.QuestionCount > 0)
+        .OrderBy(s => s.Attempts == 0 ? -1 : s.Percent).Take(5).ToList();       // Weakest skills (untouched first)
+    var hour = DateTime.Now.Hour;
+    var greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 }
 
-<h1 class="h3 mb-1">SAT skill map</h1>
-<p class="text-muted">@Model.TotalQuestions questions loaded. Practice, tests and mastery tracking are built on this map.</p>
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-4">
+    <div>
+        <h1 class="h3 mb-1">@greeting, @User.Identity!.Name</h1>
+        <p class="text-muted mb-0">
+            @if (plan.DaysLeft is int d)
+            {
+                <span><strong>@d</strong> day@(d == 1 ? "" : "s") until your SAT (@plan.Settings!.TestDate.ToString("d MMM yyyy")).</span>
+            }
+            else
+            {
+                <span>Set your test date and goal to get a tailored plan. <a href="/Plan">Set up plan</a></span>
+            }
+        </p>
+    </div>
+    <a class="btn btn-primary" href="/Practice">Start practising</a>
+</div>
 
-@foreach (var section in Model.Domains.GroupBy(d => d.Section))
-{
-    <h2 class="h5 mt-4">@(section.Key == SatPrep.Models.SatSection.Math ? "Math" : "Reading and Writing")</h2>
-    @foreach (var domain in section)
-    {
-        <table class="table table-sm align-middle mb-3">
-            <thead>
-                <tr>
-                    <th>@domain.Name</th>
-                    <th class="text-end" style="width:6rem">Easy</th>
-                    <th class="text-end" style="width:6rem">Medium</th>
-                    <th class="text-end" style="width:6rem">Hard</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var s in domain.Skills)
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card stat h-100">
+            <div class="label">Estimated score</div>
+            <div class="value">@(Model.EstTotal?.ToString() ?? "–")</div>
+            <div class="sub">
+                @if (Model.EstTotal is null) { <span>Answer ~15 questions per section</span> }
+                else { <span>R&amp;W @Model.EstRw · Math @Model.EstMath</span> }
+                @if (plan.Settings is not null) { <span> · goal @plan.Settings.TargetScore</span> }
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card stat h-100">
+            <div class="label">Today</div>
+            <div class="value">@Model.TodayCounts.Answered</div>
+            <div class="sub">questions · @(Model.TodayCounts.Answered == 0 ? "–" : (100 * Model.TodayCounts.Correct / Model.TodayCounts.Answered) + "% correct")</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card stat h-100">
+            <div class="label">Streak</div>
+            <div class="value">@Model.Streak</div>
+            <div class="sub">day@(Model.Streak == 1 ? "" : "s") in a row</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card stat h-100">
+            <div class="label">Last practice test</div>
+            <div class="value">@(Model.LastTestScore?.ToString() ?? "–")</div>
+            <div class="sub"><a href="/Tests">@(Model.LastTestScore is null ? "Take your first test" : "See all tests")</a></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h2 class="h5 mb-0">Today's plan</h2>
+                <span class="small text-muted">@plan.DoneCount / @plan.Tasks.Count done · ~@plan.TotalMinutes min</span>
+            </div>
+            @if (!plan.Tasks.Any())
+            {
+                <p class="text-muted">No questions loaded yet. Add question packs on the <a href="/Content">Content</a> page.</p>
+            }
+            <div>
+                @foreach (var t in plan.Tasks)
                 {
-                    <tr>
-                        <td>@s.Name <span class="text-muted small">@s.Code</span></td>
-                        <td class="text-end">@s.Easy</td>
-                        <td class="text-end">@s.Medium</td>
-                        <td class="text-end">@s.Hard</td>
-                    </tr>
+                    <div class="task @(t.Done ? "done" : "")">
+                        <div class="tick">✓</div>
+                        <div class="flex-grow-1">
+                            <div class="task-kind">@t.Icon · ~@t.Minutes min</div>
+                            <div class="task-title fw-semibold">@t.Title</div>
+                            <div class="small text-muted">@t.Detail</div>
+                        </div>
+                        <a class="btn btn-sm @(t.Done ? "btn-outline-secondary" : "btn-primary")" href="@t.Url">@(t.Done ? "Again" : "Start")</a>
+                    </div>
                 }
-            </tbody>
-        </table>
-    }
-}
+            </div>
+            <div class="small text-muted mt-3"><a href="/Plan">Change plan settings</a></div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card p-4 mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h5 mb-0">Focus skills</h2>
+                <a class="small" href="/Skills">All skills</a>
+            </div>
+            @foreach (var s in weakest)
+            {
+                <a class="d-flex align-items-center gap-3 py-2 text-reset text-decoration-none lvl-@s.Level" href="/Practice?skill=@s.SkillId">
+                    <span class="flex-grow-1 small">@s.Name</span>
+                    <span class="mbar" style="width:80px"><span style="width:@(s.Percent)%"></span></span>
+                    <span class="small text-muted" style="width:34px;text-align:right">@(s.Attempts > 0 ? s.Percent + "%" : "new")</span>
+                </a>
+            }
+        </div>
+
+        <div class="card p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h5 mb-0">Last 4 weeks</h2>
+                @if (Model.ReviewDue > 0)
+                {
+                    <a class="btn btn-sm btn-warning" href="/Practice?mode=ReviewDue">@Model.ReviewDue due for review</a>
+                }
+            </div>
+            <div class="activity mb-2">
+                @foreach (var a in Model.Activity)
+                {
+                    var cls = a.Count == 0 ? "" : a.Count < 10 ? "a1" : a.Count < 30 ? "a2" : "a3";
+                    <span class="@cls" title="@a.Day.ToString("ddd d MMM"): @a.Count questions"></span>
+                }
+            </div>
+            <div class="small text-muted">@Model.TotalQuestions questions in the bank.</div>
+        </div>
+    </div>
+</div>

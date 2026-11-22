@@ -1,66 +1,71 @@
-# SatPrep: feature plan
+# SatPrep: build plan (v1.0, "ready to carry downstairs")
 
-Goal: an offline SAT study platform on the air-gapped network, modeled on
-Aniko and OnePrep, without the AI features. It runs on the second Windows Server 2022 box,
-next to ShiftManager.
+Goal: a complete offline SAT study platform for the air-gapped Windows Server
+2022 machine. It should match Aniko and OnePrep on everything except AI. It
+installs as a Windows Service with one script and runs with no internet.
 
-## Reference sites: what they offer (researched 2026-11-22)
+## 1. Content strategy (decided 2026-11-22)
 
-| Feature | Aniko | OnePrep | SatPrep? |
-|---|---|---|---|
-| Question bank by section, domain and skill | yes (4,000 free) | yes (4,000+ free) | **MVP** |
-| Difficulty filter (Easy/Medium/Hard) | labels only | yes | **MVP** |
-| Full step-by-step explanations | yes | yes | **MVP** |
-| Filter: incorrect / marked for review | via Error Log | yes | **MVP** |
-| Error log / mistakes review | yes (filter by difficulty, domain, skill) | yes | **MVP** |
-| Skill mastery tracking | mentioned, formula not public | progress and accuracy per skill | **MVP** (ours: Elo/IRT, see below) |
-| Full-length adaptive practice test (2 sections × 2 modules, M2 adapts to M1) | yes | yes (12 tests) | **Phase 2** |
-| Section-only / half / short tests | yes | no | Phase 2 |
-| Test UI: timer, mark for review, highlight, answer eliminator, reference sheet | yes | yes | Phase 2 |
-| Graphing calculator | Desmos | Desmos | Phase 2: **Desmos needs internet**, so we bundle an open-source alternative |
-| Results page: score 400–1600, per-domain accuracy, timing vs. pace | yes | yes | Phase 2 |
-| Score estimate that updates as you practice | yes | yes | Phase 2 |
-| Pacing analytics (seconds/question, too fast/slow) | yes | "time share by difficulty" | Phase 2 |
-| Courses / lessons per domain | yes (free) | Masterclass video (paid) | Phase 3 (content dependent) |
-| Study plan (test date, target score, then daily sessions) | yes | yes | Phase 3 |
-| Vocabulary list, flashcards, quiz | yes (312 words) | yes | Phase 3 |
-| Review Labs (replay misses by topic) | yes | no | Phase 3 (cheap once Error Log exists) |
-| Bookmarks / collections | yes | no | Phase 3 |
-| Leagues / leaderboards / streaks | yes (Lock-In) | no | Phase 4 (fun for a group) |
-| AI tutor | yes | yes | **Out of scope** |
-| Score guarantee, pricing | yes | yes | Out of scope |
+We are **not** asking Aniko/OnePrep for anything more, and we do not
+bypass their bot protection (Aniko: Vercel challenge; OnePrep: robots.txt blocks
+Claude crawlers). v1.0 therefore ships with **its own original question bank**,
+and makes adding more content trivial:
 
-## Extras that make sense for us ("and more")
+| Source | How | Volume in v1.0 |
+|---|---|---|
+| Math generators (`tools/SatPrep.ContentGen`) | Parameterized templates per skill, answers **computed** (always correct), distractors built from common mistakes, worked explanation generated from the same numbers. Fixed seed, so the output is stable and committed as a pack. | ~800 (all 19 math skills × 3 difficulties) |
+| R&W generators | Templates for Boundaries, Form/Structure/Sense, Transitions, Words in Context (built from the vocab bank), Rhetorical Synthesis (note sets). | ~400 |
+| Hand-written R&W passages | Central Ideas, Inferences, Command of Evidence, Text Structure & Purpose, Cross-Text Connections. | ~60 |
+| Vocabulary bank | Word, part of speech, definition, example sentence. | ~250 words |
+| Lessons | One lesson per domain with a section per skill: strategy, worked example, common traps. | 8 lessons / 29 skill sections |
+| **Owner-added** | Content page: upload JSON packs, plus an in-app question editor. Saved pages from sites we have permission for can be converted into packs later. | unlimited |
 
-- **Instructor/admin view**: see every learner's mastery heat map and assign skill sets. Neither site has this, and it fits a shared, closed network well.
-- **Content admin**: import packs, retire bad questions, see question stats (actual % correct, which lets us re-calibrate difficulty from real data).
-- **Spaced repetition**: missed questions come back after 1, 3 and 7 days.
-- **Hebrew UI and RTL**: reuse ShiftManager's localization approach if learners want it. The content stays in English, like the real SAT.
-- **Printable worksheets**: export a skill set to PDF for paper practice.
+## 2. Feature list (v1.0; scope cut by owner 2026-11-22)
 
-## Skill mastery model (built: `Services/MasteryService.cs`)
+**Focus:** questions, skill progress, daily plan, practice by topic,
+explanations, studying. **Dropped:** passwords/accounts admin,
+leaderboard, streak competitions, analytics extras.
 
-- Each learner has an ability rating per skill. Question difficulty maps to b = −1/0/+1.
-- After each answer: `rating += K × (correct − P(correct))`, with K shrinking as evidence grows.
-- Shown as 0–100% (expected accuracy on a Medium question) and as bands: Not started → Learning → Familiar → Proficient → **Mastered**.
-- **Mastered** requires ≥85%, ≥8 attempts, and ≥2 correct Hard questions, so lots of easy wins can't fake it.
-- `RecommendedDifficulty()` serves questions in the ~60–75% success zone, which gives adaptive practice for free.
+### Core
+1. **Enter your name** start screen: pick an existing learner or type a new name. No passwords. Everything is remembered per name (cookie keeps you signed in on that PC).
+2. **Home / daily plan**: today's tasks (review due, weakest skills, a lesson to read, vocab, the weekly practice test), days until the test, estimated score versus target.
+3. **Skill progress**: all 29 skills with mastery band, %, accuracy, attempts, last practiced; per-domain summary; "practice" and "study" buttons on every skill.
+4. **Practice by topic**: choose a section, domain or skill, difficulty (Easy/Medium/Hard/**Adaptive**) and pool (new / all / incorrect / marked / review due). One question at a time, then instant feedback, the **full explanation** and the mastery change.
+5. **Question bank browser**: filter by skill, difficulty and status (unseen/correct/incorrect/marked) and open any question.
+6. **Mistakes**: every missed question, with retry; misses come back automatically after 1, 3 and 7 days (spaced review).
+7. **Studying**: lessons per domain, with a section per skill (strategy, worked examples, traps) and a "practice this skill" link; vocabulary flashcards.
+8. **Practice tests** (from the original request): full adaptive test, or section-only. Timer, question navigator, mark for review, answer eliminator, calculator and reference sheet, then results with section scores, per-domain accuracy and question review with explanations.
 
-## Roadmap (fastest path to something people use)
+### Content management (anyone; no admin role)
+9. Import JSON question packs (bundled folder imported on start-up, plus upload in the browser), simple question editor, retire a bad question.
 
-1. **MVP (practice loop)**: login (cookie auth copied from ShiftManager), practice by skill and difficulty, answer, explanation, mastery update, mastery dashboard, error log. *Most of the data model is already built.*
-2. **Practice tests**: test assembly (by blueprint: 27+27 RW, 22+22 Math, M2 easier/harder routing), timed test player, results, score estimate. Needs ~98+ questions per test drawn from the bank.
-3. **Learning**: lessons per domain, study plan, vocab and flashcards, review labs.
-4. **Group features**: instructor dashboard, leaderboards.
+### Platform / deployment
+10. Windows Service built in (`UseWindowsService`); `Install-SatPrep.ps1` installs to `C:\SatPrep`, registers the **SatPrep** service (visible in Server Manager → Tools → Services; automatic start, restart on failure), opens firewall TCP 5100, health-checks. Plus `Update-SatPrep.ps1` (DB backup first), `Uninstall-SatPrep.ps1` and `Backup-SatPrep.ps1`.
+11. EF Core migrations with an automatic DB backup before upgrading.
+12. Zero external requests (verified in an end-to-end test).
 
-## Status of the scaffold
+## 3. Architecture
 
-- [x] ASP.NET Core 8 Razor Pages + EF Core SQLite (same stack and versions as ShiftManager)
-- [x] Official taxonomy: 8 domains / 29 skills seeded
-- [x] Question entity + JSON content-pack importer (idempotent, validated)
-- [x] Mastery engine + unit tests
-- [x] KaTeX bundled locally; verified zero external requests
-- [x] Self-contained win-x64 release zip, buildable from Linux (cloud) or Windows
-- [ ] Switch `EnsureCreated` to EF Migrations before the first real deployment
-- [ ] Auth, practice flow, dashboard (MVP)
-- [ ] Offline graphing calculator (candidates: function-plot (MIT), JSXGraph; check licence)
+- ASP.NET Core 8 Razor Pages, EF Core 9 SQLite, cookie auth, as in ShiftManager.
+- Server-rendered pages. The test player and calculator are vanilla JS classes using small JSON endpoints.
+- "Login" = cookie holding the learner id; no passwords.
+- Services (pure where possible, unit-tested): `MasteryService`, `ScoreEstimator`, `TestAssembler`, `PracticeSelector`, `ReviewScheduler`, `StudyPlanner`, `ContentImporter`.
+- Content as data: `Content/packs/*.json`, `Content/lessons/*.md`, `Content/vocab.json`.
+
+## 4. Score estimation (documented approximation)
+
+- Each section: weighted raw = sum of difficulty weights of correct answers (E=1, M=1.5, H=2).
+- The routed module caps the range: lower module 2 → max ≈ 600, upper module 2 → up to 800. The weighted fraction is mapped to the 200–800 scale.
+- Dashboard estimate (no test needed): per section, the domain-weighted mean of the mastery-model P(correct on a typical item), mapped the same way.
+- Always labeled "estimate". The official SAT uses IRT scoring that isn't public.
+
+## 5. Milestones
+
+1. Data model + name sign-in + layout
+2. Practice engine, explanations, skill progress, bank browser, mistakes/review
+3. Original content (math + R&W generators, passages, vocab, lessons)
+4. Daily plan + lessons + vocab
+5. Practice tests (assembler, player, calculator, reference sheet, results)
+6. Content import/editor
+7. Windows Service installer + release build
+8. End-to-end verification, docs, release zip

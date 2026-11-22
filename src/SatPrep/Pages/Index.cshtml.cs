@@ -1,57 +1,58 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 using SatPrep.Data;
+using SatPrep.Extensions;
 using SatPrep.Models;
+using SatPrep.Services;
 
 namespace SatPrep.Pages;
 
 /// <summary>
-/// Home page: shows the full SAT skill map with the number of questions
-/// available per skill. Becomes the "skill mastery" dashboard once login
-/// is added (mastery columns are already wired through MasteryService).
+/// "Today" home page: daily plan, score estimate vs target, streak, review
+/// due, weakest skills and recent activity.
 /// </summary>
 public class IndexModel : PageModel
 {
-    private readonly AppDbContext _db; // Database access
+    private readonly AppDbContext _db;        // Database
+    private readonly StatsService _stats;     // Progress queries
+    private readonly StudyPlanner _planner;   // Daily plan builder
 
-    /// <param name="db">Database context.</param>
-    public IndexModel(AppDbContext db) => _db = db;
-
-    /// <summary>One row in the skill table.</summary>
-    public record SkillRow(string Code, string Name, int Easy, int Medium, int Hard);
-
-    /// <summary>One domain with its skills.</summary>
-    public record DomainRow(string Name, SatSection Section, List<SkillRow> Skills);
-
-    public List<DomainRow> Domains { get; private set; } = new(); // Data rendered by the view
-    public int TotalQuestions { get; private set; }                 // Header counter
-
-    /// <summary>Loads the taxonomy and per-difficulty question counts.</summary>
-    public async Task OnGetAsync()
+    /// <param name="db">Database.</param>
+    /// <param name="stats">Stats queries.</param>
+    /// <param name="planner">Study planner.</param>
+    public IndexModel(AppDbContext db, StatsService stats, StudyPlanner planner)
     {
-        // Count active questions grouped by skill and difficulty in one query
-        var counts = await _db.Questions
-            .Where(q => q.IsActive)
-            .GroupBy(q => new { q.SkillId, q.Difficulty })
-            .Select(g => new { g.Key.SkillId, g.Key.Difficulty, N = g.Count() })
-            .ToListAsync();
-
-        // Local helper: looks up the count for one skill + difficulty
-        int Count(int skillId, Difficulty d) => counts.FirstOrDefault(c => c.SkillId == skillId && c.Difficulty == d)?.N ?? 0;
-
-        // Load domains with their skills in display order
-        var domains = await _db.Domains.Include(d => d.Skills)
-            .OrderBy(d => d.Section).ThenBy(d => d.SortOrder)
-            .ToListAsync();
-
-        Domains = domains.Select(d => new DomainRow(
-            d.Name,
-            d.Section,
-            d.Skills.OrderBy(s => s.SortOrder)
-                .Select(s => new SkillRow(s.Code, s.Name,
-                    Count(s.Id, Difficulty.Easy), Count(s.Id, Difficulty.Medium), Count(s.Id, Difficulty.Hard)))
-                .ToList())).ToList();
-
-        TotalQuestions = counts.Sum(c => c.N);
+        _db = db;
+        _stats = stats;
+        _planner = planner;
     }
+
+    public DailyPlan Plan { get; private set; } = null!;                       // Today's tasks
+    public List<SkillProgress> Skills { get; private set; } = new();            // All skills with mastery
+    public int? EstRw { get; private set; }                                     // Estimated R&W score
+    public int? EstMath { get; private set; }                                   // Estimated Math score
+    public int? LastTestScore { get; private set; }                             // Most recent full test total
+    public int Streak { get; private set; }                                     // Days in a row
+    public (int Answered, int Correct) TodayCounts { get; private set; }        // Today's answers
+    public int ReviewDue { get; private set; }                                  // Reviews due now
+    public List<(DateTime Day, int Count)> Activity { get; private set; } = new(); // Last 28 days
+    public int TotalQuestions { get; private set; }                             // Bank size
+
+    /// <summary>Loads everything shown on the home page.</summary>
+    public void OnGet()
+    {
+        int userId = User.UserId();
+        Plan = _planner.Today(userId);
+        Skills = _stats.SkillProgress(userId);
+        (EstRw, EstMath) = StatsService.EstimateFromMastery(Skills);
+        LastTestScore = _db.Tests.Where(t => t.UserId == userId && t.Status == TestStatus.Completed && t.TotalScore != null)
+            .OrderByDescending(t => t.CompletedUtc).Select(t => t.TotalScore).FirstOrDefault();
+        Streak = _stats.StreakDays(userId);
+        TodayCounts = _stats.Today(userId);
+        ReviewDue = _stats.ReviewDueCount(userId);
+        Activity = _stats.Activity(userId, 28);
+        TotalQuestions = _db.Questions.Count(q => q.IsActive);
+    }
+
+    /// <summary>Total estimated score, if both sections have enough data.</summary>
+    public int? EstTotal => EstRw is int r && EstMath is int m ? r + m : null;
 }

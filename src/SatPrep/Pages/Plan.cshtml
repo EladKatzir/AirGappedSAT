@@ -1,0 +1,39 @@
+@page
+@model PlanModel
+@{
+    ViewData["Title"] = "Study plan";
+    var days = System.Globalization.CultureInfo.InvariantCulture.DateTimeFormat.DayNames; // Sunday..Saturday
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <h1 class="h3 mb-1">Study plan</h1>
+        <p class="text-muted">Your daily plan on the home page is built from these settings and your skill mastery. It changes as you improve.</p>
+        <form method="post" class="card p-4">
+            <div class="mb-3">
+                <label class="form-label" asp-for="TestDate">SAT test date</label>
+                <input class="form-control" asp-for="TestDate" type="date" />
+            </div>
+            <div class="mb-3">
+                <label class="form-label" asp-for="TargetScore">Target score (400–1600)</label>
+                <input class="form-control" asp-for="TargetScore" type="number" min="400" max="1600" step="10" />
+                <span class="text-danger small" asp-validation-for="TargetScore"></span>
+            </div>
+            <div class="mb-3">
+                <label class="form-label" asp-for="MinutesPerDay">Minutes per day</label>
+                <input class="form-control" asp-for="MinutesPerDay" type="number" min="10" max="300" step="5" />
+                <div class="form-text">150+ minutes on test day schedules a full-length test; otherwise a short one.</div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label" asp-for="PracticeTestDay">Weekly practice test day</label>
+                <select class="form-select" asp-for="PracticeTestDay">
+                    @for (int i = 0; i < 7; i++)
+                    {
+                        <option value="@i" selected="@(Model.PracticeTestDay == i)">@days[i]</option>
+                    }
+                </select>
+            </div>
+            <button class="btn btn-primary" type="submit">Save plan</button>
+        </form>
+    </div>
+</div>

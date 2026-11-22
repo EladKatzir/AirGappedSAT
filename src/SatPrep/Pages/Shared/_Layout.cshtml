@@ -1,52 +1,78 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+﻿@{
+    // Current path, used to highlight the active nav item
+    var path = Context.Request.Path.Value ?? "/";
+    // Helper: returns "active" when the current page is under the given prefix
+    string Active(string prefix) => (prefix == "/" ? path == "/" : path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) ? "active" : "";
+    var signedIn = User.Identity?.IsAuthenticated == true;      // Show nav only when a learner is signed in
+    var fullScreen = ViewData["FullScreen"] as bool? == true;   // Test player hides the nav
+}
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - SatPrep</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/SatPrep.styles.css" asp-append-version="true" />
+    <script>
+        // Apply the saved light/dark theme before first paint (no flash)
+        try { const t = localStorage.getItem("satprep-theme"); if (t) document.documentElement.dataset.bsTheme = t; } catch { }
+    </script>
+    <link rel="stylesheet" href="~/lib/bootstrap/bootstrap.min.css" />
     <link rel="stylesheet" href="~/lib/katex/katex.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @await RenderSectionAsync("Head", required: false)
 </head>
-<body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+<body class="@(fullScreen ? "full-screen" : "")">
+    @if (signedIn && !fullScreen)
+    {
+        <nav class="navbar navbar-expand-lg app-nav border-bottom mb-4">
             <div class="container">
-                <a class="navbar-brand" asp-area="" asp-page="/Index">SatPrep</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+                <a class="navbar-brand fw-semibold" href="/"><span class="brand-mark">S</span> SatPrep</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-label="Menu">
                     <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
+                <div class="collapse navbar-collapse" id="nav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item"><a class="nav-link @Active("/")" href="/">Today</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("/Practice")" href="/Practice">Practice</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("/Skills")" href="/Skills">Skills</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("/Mistakes")" href="/Mistakes">Mistakes</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("/Study")" href="/Study">Study</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("/Tests")" href="/Tests">Tests</a></li>
+                        <li class="nav-item"><a class="nav-link @Active("/Bank")" href="/Bank">Question bank</a></li>
+                    </ul>
+                    <ul class="navbar-nav">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Index">Home</a>
+                            <button class="btn btn-link nav-link" type="button" id="themeToggle" title="Light / dark">◐</button>
                         </li>
-                        
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">@User.Identity!.Name</a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="/Plan">Study plan settings</a></li>
+                                <li><a class="dropdown-item" href="/Content">Content</a></li>
+                                <li><hr class="dropdown-divider" /></li>
+                                <li>
+                                    <form method="post" action="/Account/Logout">
+                                        <button class="dropdown-item" type="submit">Switch learner</button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
                     </ul>
                 </div>
             </div>
         </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
+    }
+    @Html.AntiForgeryToken() @* Token for JS POSTs (bookmarks, test autosave) *@
+    <div class="@(fullScreen ? "container-fluid p-0" : "container pb-5")">
+        <main role="main">
             @RenderBody()
         </main>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - SatPrep - offline edition
-        </div>
-    </footer>
-
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/bootstrap/bootstrap.bundle.min.js"></script>
     <script src="~/lib/katex/katex.min.js"></script>
     <script src="~/lib/katex/auto-render.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
-
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

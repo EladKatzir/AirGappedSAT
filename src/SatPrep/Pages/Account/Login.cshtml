@@ -1,0 +1,42 @@
+@page
+@model SatPrep.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Who is studying?";
+}
+
+<div class="login-wrap">
+    <div class="card login-card p-4 p-md-5">
+        <div class="text-center mb-4">
+            <div class="brand-mark brand-mark-lg mx-auto mb-3">S</div>
+            <h1 class="h3 mb-1">Who is studying?</h1>
+            <p class="text-muted mb-0">Your progress, skills and answers are saved under your name.</p>
+        </div>
+
+        @if (Model.Learners.Any())
+        {
+            <div class="d-grid gap-2 mb-4">
+                @foreach (var u in Model.Learners)
+                {
+                    <form method="post">
+                        <input type="hidden" name="Name" value="@u.UserName" />
+                        <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
+                        <button class="btn btn-outline-primary btn-lg w-100 text-start learner-btn" type="submit">
+                            <span class="avatar">@u.UserName[..1].ToUpperInvariant()</span> @u.UserName
+                        </button>
+                    </form>
+                }
+            </div>
+            <div class="text-center text-muted small mb-3">or start as someone new</div>
+        }
+
+        <form method="post" class="d-flex gap-2">
+            <input type="hidden" name="ReturnUrl" value="@Model.ReturnUrl" />
+            <input class="form-control form-control-lg" name="Name" placeholder="Your name" maxlength="40" autofocus autocomplete="off" />
+            <button class="btn btn-primary btn-lg" type="submit">Start</button>
+        </form>
+        @if (Model.Error is not null)
+        {
+            <div class="text-danger small mt-2">@Model.Error</div>
+        }
+    </div>
+</div>

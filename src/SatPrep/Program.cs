@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using SatPrep.Data;
 using SatPrep.Services;
@@ -14,7 +16,7 @@ public class Program
     public static void Main(string[] args)
     {
         var app = AppBootstrapper.Build(args);   // Configure services + pipeline
-        AppBootstrapper.InitializeData(app);     // Create DB, seed taxonomy, import content packs
+        AppBootstrapper.InitializeData(app);     // Migrate DB, seed taxonomy, import content
         app.Run();                               // Start Kestrel and block until shutdown
     }
 }
@@ -22,7 +24,8 @@ public class Program
 /// <summary>
 /// Builds and configures the web host. Mirrors ShiftManager's hosting model:
 /// Kestrel self-hosted, SQLite file DB, no external network calls, all static
-/// assets served from wwwroot (no CDNs).
+/// assets served from wwwroot (no CDNs). Runs as a console app or as a
+/// Windows Service (installed by deploy/Install-SatPrep.ps1).
 /// </summary>
 public static class AppBootstrapper
 {
@@ -33,14 +36,47 @@ public static class AppBootstrapper
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
             Args = args,
-            ContentRootPath = AppContext.BaseDirectory  // Run correctly from START_HERE.bat or a Windows Service
+            ContentRootPath = AppContext.BaseDirectory  // Services start in System32; always resolve files next to the exe
         });
 
-        builder.Services.AddRazorPages();                                                     // UI
+        builder.Host.UseWindowsService(o => o.ServiceName = "SatPrep"); // No-op when run from a console
+
+        // Keep auth cookie keys next to the app so logins survive restarts / service account changes
+        builder.Services.AddDataProtection()
+            .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(AppContext.BaseDirectory, "keys")))
+            .SetApplicationName("SatPrep");
+
+        builder.Services.AddRazorPages(o =>
+        {
+            o.Conventions.AuthorizeFolder("/");                      // Everything requires login...
+            o.Conventions.AllowAnonymousToFolder("/Account");        // ...except the "enter your name" screen
+        });
+
+        builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+            .AddCookie(o =>
+            {
+                o.LoginPath = "/Account/Login";
+                o.LogoutPath = "/Account/Logout";
+                o.Cookie.Name = "satprep.auth";
+                o.Cookie.HttpOnly = true;                            // JS cannot read the cookie
+                o.Cookie.SameSite = SameSiteMode.Lax;                // CSRF protection for normal navigation
+                o.ExpireTimeSpan = TimeSpan.FromDays(365);           // Remember the learner on this PC
+                o.SlidingExpiration = true;
+            });
+
         builder.Services.AddDbContext<AppDbContext>(o =>
             o.UseSqlite(builder.Configuration.GetConnectionString("Default")));               // SQLite file
-        builder.Services.AddSingleton<MasteryService>();                                      // Pure, stateless
-        builder.Services.AddScoped<ContentImporter>();                                        // Uses the DbContext
+
+        // Application services
+        builder.Services.AddSingleton<MasteryService>();             // Pure, stateless
+        builder.Services.AddSingleton<ScoreEstimator>();             // Pure, stateless
+        builder.Services.AddSingleton<LessonService>();              // Loads Markdown lessons from disk (cached)
+        builder.Services.AddScoped<ContentImporter>();               // Imports question / vocab packs
+        builder.Services.AddScoped<ProgressService>();               // Records answers, mastery, reviews
+        builder.Services.AddScoped<PracticeSelector>();              // Picks the next practice question
+        builder.Services.AddScoped<TestService>();                   // Builds, runs and scores practice tests
+        builder.Services.AddScoped<StudyPlanner>();                  // Daily study plan
+        builder.Services.AddScoped<StatsService>();                  // Dashboard / analytics queries
 
         var app = builder.Build();
 
@@ -51,24 +87,29 @@ public static class AppBootstrapper
 
         app.UseStaticFiles();                                                                 // wwwroot (KaTeX, CSS, JS)
         app.UseRouting();
+        app.UseAuthentication();
         app.UseAuthorization();
         app.MapRazorPages();
-        app.MapGet("/health", () => Results.Ok(new { status = "ok" }));                       // For START_HERE.bat / monitoring
+        app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();      // Used by the installer
 
         return app;
     }
 
-    /// <summary>Creates the database if needed, seeds the taxonomy and imports bundled content packs.</summary>
+    /// <summary>Migrates the database, seeds the taxonomy and imports bundled content.</summary>
     /// <param name="app">The built application.</param>
     public static void InitializeData(WebApplication app)
     {
         using var scope = app.Services.CreateScope();                                         // Scoped services need a scope
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var log = scope.ServiceProvider.GetRequiredService<ILogger<AppDbContext>>();
 
-        db.Database.EnsureCreated();                                                          // TODO: switch to Migrations before first real deployment
+        DatabaseMaintenance.BackupBeforeMigrate(db, log);                                     // Copy satprep.db before schema changes
+        db.Database.Migrate();                                                                // Create / upgrade schema
         SatTaxonomy.EnsureSeeded(db);                                                         // 8 domains / 29 skills
 
-        var packs = Path.Combine(app.Environment.ContentRootPath, "Content", "packs");       // Bundled question packs
-        scope.ServiceProvider.GetRequiredService<ContentImporter>().ImportFolder(packs);     // Idempotent import
+        var contentRoot = Path.Combine(app.Environment.ContentRootPath, "Content");          // Bundled content folder
+        var importer = scope.ServiceProvider.GetRequiredService<ContentImporter>();
+        importer.ImportFolder(Path.Combine(contentRoot, "packs"));                           // Questions (idempotent)
+        importer.ImportVocab(Path.Combine(contentRoot, "vocab.json"));                        // Vocabulary (idempotent)
     }
 }

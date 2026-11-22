@@ -1,0 +1,66 @@
+@page
+@model SkillsModel
+@{
+    ViewData["Title"] = "Skill progress";
+    // Counts per mastery band, for the summary strip
+    var bands = Enum.GetValues<MasteryLevel>().ToDictionary(l => l, l => Model.Skills.Count(s => s.Level == l));
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+    <div>
+        <h1 class="h3 mb-1">Skill progress</h1>
+        <p class="text-muted mb-0">Mastery is your expected accuracy on a medium question. It rewards hard questions you get right and drops when you miss easy ones.
+            <strong>Mastered</strong> also needs 8+ answers including 2 correct hard ones.</p>
+    </div>
+</div>
+
+<div class="card p-3 mb-4">
+    <div class="d-flex flex-wrap gap-3 align-items-center">
+        @foreach (var b in bands)
+        {
+            <span class="lvl-@b.Key"><span class="lvl-badge">@b.Key</span> <strong class="ms-1">@b.Value</strong></span>
+        }
+        <span class="ms-auto small text-muted">Estimated: R&amp;W @(Model.EstRw?.ToString() ?? "–") · Math @(Model.EstMath?.ToString() ?? "–")</span>
+    </div>
+</div>
+
+@foreach (var section in Model.Skills.GroupBy(s => s.Section))
+{
+    <h2 class="h5 mt-4 mb-3">@(section.Key == SatSection.Math ? "Math" : "Reading and Writing")</h2>
+    <div class="row g-3">
+        @foreach (var domain in section.GroupBy(s => (s.DomainId, s.DomainName, s.DomainCode)))
+        {
+            var practised = domain.Where(s => s.Attempts > 0).ToList();
+            var avg = practised.Any() ? (int)practised.Average(s => s.Percent) : 0;
+            <div class="col-12">
+                <div class="card p-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-1">
+                        <h3 class="h6 mb-0">@domain.Key.DomainName <span class="text-muted fw-normal small ms-2">@(practised.Any() ? avg + "% average" : "not started")</span></h3>
+                        <div>
+                            <a class="btn btn-sm btn-outline-secondary" href="/Study/Lesson/@domain.Key.DomainCode">Lesson</a>
+                            <a class="btn btn-sm btn-outline-primary" href="/Practice?domain=@domain.Key.DomainId">Practice domain</a>
+                        </div>
+                    </div>
+                    @foreach (var s in domain)
+                    {
+                        <div class="skill-row lvl-@s.Level">
+                            <div>
+                                <div class="fw-semibold">@s.Name</div>
+                                <div class="small text-muted">
+                                    @if (s.Attempts == 0) { <span>Not practised yet · @s.QuestionCount questions available</span> }
+                                    else { <span>@s.Correct / @s.Attempts correct · last @s.LastPracticed!.Value.ToLocalTime().ToString("d MMM")</span> }
+                                </div>
+                            </div>
+                            <div class="hide-sm"><div class="mbar"><span style="width:@(s.Percent)%"></span></div></div>
+                            <div class="hide-sm"><span class="lvl-badge">@s.Level</span> <span class="small ms-1">@(s.Attempts > 0 ? s.Percent + "%" : "")</span></div>
+                            <div class="text-end text-nowrap">
+                                <a class="btn btn-sm btn-link" href="/Study/Lesson/@s.DomainCode#@s.Code">Study</a>
+                                <a class="btn btn-sm btn-primary" href="/Practice?skill=@s.SkillId">Practice</a>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}

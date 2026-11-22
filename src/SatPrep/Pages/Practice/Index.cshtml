@@ -1,0 +1,192 @@
+@page
+@model SatPrep.Pages.Practice.IndexModel
+@{
+    ViewData["Title"] = "Practice";
+}
+
+@if (Model.ShowPicker)
+{
+    <div class="d-flex flex-wrap justify-content-between align-items-end mb-3 gap-2">
+        <div>
+            <h1 class="h3 mb-1">Practice by topic</h1>
+            <p class="text-muted mb-0">Pick a section, domain or skill. Adaptive mode picks the difficulty that fits your current mastery.</p>
+        </div>
+        @if (Model.ReviewDue > 0)
+        {
+            <a class="btn btn-warning" href="/Practice?mode=ReviewDue">Review @Model.ReviewDue due question@(Model.ReviewDue == 1 ? "" : "s")</a>
+        }
+    </div>
+
+    <form method="get" class="card p-3 mb-4">
+        <div class="row g-2 align-items-end filter-bar">
+            <div class="col-sm-4 col-md-3">
+                <label class="form-label small text-muted mb-1">Difficulty</label>
+                <select class="form-select" name="difficulty" id="pickDifficulty">
+                    <option value="">Adaptive (recommended)</option>
+                    <option>Easy</option><option>Medium</option><option>Hard</option>
+                </select>
+            </div>
+            <div class="col-sm-4 col-md-3">
+                <label class="form-label small text-muted mb-1">Questions</label>
+                <select class="form-select" name="mode" id="pickMode">
+                    <option value="New">New ones first</option>
+                    <option value="All">Any</option>
+                    <option value="Incorrect">Ones I got wrong</option>
+                    <option value="Marked">Marked ones</option>
+                </select>
+            </div>
+            <div class="col-sm-4 col-md-6 text-sm-end">
+                <button class="btn btn-primary me-1" name="section" value="ReadingWriting">Mixed Reading &amp; Writing</button>
+                <button class="btn btn-primary" name="section" value="Math">Mixed Math</button>
+            </div>
+        </div>
+    </form>
+
+    @foreach (var section in Model.Skills.GroupBy(s => s.Section))
+    {
+        <h2 class="h5 mt-4 mb-3">@(section.Key == SatSection.Math ? "Math" : "Reading and Writing")</h2>
+        <div class="row g-3">
+            @foreach (var domain in section.GroupBy(s => (s.DomainId, s.DomainName)))
+            {
+                <div class="col-lg-6">
+                    <div class="card p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h3 class="h6 mb-0">@domain.Key.DomainName</h3>
+                            <a class="btn btn-sm btn-outline-primary topic-link" href="/Practice?domain=@domain.Key.DomainId">Practice domain</a>
+                        </div>
+                        @foreach (var s in domain)
+                        {
+                            <a class="d-flex align-items-center gap-3 py-2 text-reset text-decoration-none border-top topic-link lvl-@s.Level"
+                               href="/Practice?skill=@s.SkillId">
+                                <span class="flex-grow-1">@s.Name <span class="text-muted small">(@s.QuestionCount)</span></span>
+                                <span class="mbar flex-shrink-0" style="width:90px"><span style="width:@(s.Percent)%"></span></span>
+                                <span class="small text-muted" style="width:36px;text-align:right">@(s.Attempts > 0 ? s.Percent + "%" : "–")</span>
+                            </a>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    @section Scripts {
+        <script>
+            // Carry the chosen difficulty / pool into every topic link
+            class TopicPicker {
+                /** Rewrites topic links whenever a select changes. */
+                static init() {
+                    const diff = document.getElementById("pickDifficulty"); // Difficulty select
+                    const mode = document.getElementById("pickMode");       // Pool select
+                    const update = () => document.querySelectorAll("a.topic-link").forEach(a => {
+                        const url = new URL(a.href);                      // Parse current link
+                        url.searchParams.set("mode", mode.value);
+                        if (diff.value) url.searchParams.set("difficulty", diff.value); else url.searchParams.delete("difficulty");
+                        a.href = url.toString();
+                    });
+                    diff.addEventListener("change", update);
+                    mode.addEventListener("change", update);
+                    update();
+                }
+            }
+            TopicPicker.init();
+        </script>
+    }
+}
+else
+{
+    <div class="row justify-content-center">
+        <div class="col-lg-9 col-xl-8">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <div class="small text-muted">Practice</div>
+                    <h1 class="h5 mb-0">@Model.ScopeTitle</h1>
+                </div>
+                <a class="btn btn-sm btn-outline-secondary" href="@(Model.From == "bank" ? "/Bank" : Model.From == "mistakes" ? "/Mistakes" : "/Practice")">
+                    @(Model.From == "bank" ? "Back to bank" : Model.From == "mistakes" ? "Back to mistakes" : "Change topic")
+                </a>
+            </div>
+
+            @if (Model.NothingLeft)
+            {
+                <div class="card p-4 text-center">
+                    <h2 class="h5">Nothing to practise here</h2>
+                    <p class="text-muted">No questions match this filter@(Model.Mode == PracticeMode.ReviewDue ? " – you have no reviews due. Nice!" : ".")</p>
+                    <div><a class="btn btn-primary" href="/Practice">Choose another topic</a></div>
+                </div>
+            }
+            else if (Model.Card is not null)
+            {
+                <div class="card p-4">
+                    @if (!Model.Card.Answered)
+                    {
+                        <form method="post" id="answerForm">
+                            <input type="hidden" name="QuestionId" value="@Model.Card.Question.Id" />
+                            <input type="hidden" name="StartedMs" id="startedMs" />
+                            <partial name="_QuestionCard" model="Model.Card" />
+                            <div class="d-flex justify-content-between align-items-center mt-3">
+                                <span class="small text-muted" id="qTimer">0:00</span>
+                                <div>
+                                    @if (Model.HasFilter)
+                                    {
+                                        <a class="btn btn-outline-secondary me-2" href="@Model.NextUrl()">Skip</a>
+                                    }
+                                    <button class="btn btn-primary px-4" type="submit">Check answer</button>
+                                </div>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <partial name="_QuestionCard" model="Model.Card" />
+                        <div class="d-flex justify-content-between align-items-center mt-4">
+                            <a class="small" href="/Study/Lesson/@Model.Card.Question.Skill!.Domain!.Code#@Model.Card.Question.Skill.Code">Study this skill</a>
+                            @if (Model.HasFilter)
+                            {
+                                <a class="btn btn-primary px-4" href="@Model.NextUrl()" id="nextBtn" autofocus>Next question →</a>
+                            }
+                            else
+                            {
+                                <a class="btn btn-primary px-4" href="@(Model.From == "bank" ? "/Bank" : "/Mistakes")">Back</a>
+                            }
+                        </div>
+                    }
+                </div>
+                @if (Model.Card.Answered)
+                {
+                    <p class="text-center small text-muted mt-3">@Model.AnsweredThisSession questions answered today</p>
+                }
+            }
+        </div>
+    </div>
+
+    @section Scripts {
+        <script>
+            /** Per-question stopwatch + keyboard shortcuts for practice. */
+            class PracticePlayer {
+                /** Starts the timer and wires keys (A-D to choose, Enter to submit / next). */
+                static init() {
+                    const started = Date.now();                                   // Question shown time
+                    const field = document.getElementById("startedMs");           // Hidden field posted with the answer
+                    if (field) field.value = started;
+                    const timer = document.getElementById("qTimer");              // Visible stopwatch
+                    if (timer) setInterval(() => {
+                        const s = Math.floor((Date.now() - started) / 1000);
+                        timer.textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+                    }, 1000);
+
+                    document.addEventListener("keydown", e => {
+                        if (e.target.tagName === "INPUT" && e.target.type === "text") return; // Typing an SPR answer
+                        const key = e.key.toUpperCase();
+                        const radio = document.querySelector(`input[name="answer"][value="${key}"]`);
+                        if (radio) { radio.checked = true; return; }                // A-D selects a choice
+                        if (e.key === "Enter") {
+                            const next = document.getElementById("nextBtn");
+                            if (next) next.click();
+                        }
+                    });
+                }
+            }
+            PracticePlayer.init();
+        </script>
+    }
+}

@@ -108,6 +108,11 @@ public class ContentImporter
                 _db.Questions.Add(entity);                           // Queue insert
                 added++;
             }
+            else if (entity.IsManual)
+            {
+                skipped++;                                           // Edited in the app - never overwrite local edits
+                continue;
+            }
             else
             {
                 updated++;                                           // Will overwrite fields below
@@ -128,6 +133,53 @@ public class ContentImporter
 
         _db.SaveChanges();                                           // Commit the whole file at once
         return new ImportResult(added, updated, skipped, errors);
+    }
+
+    /// <summary>
+    /// Imports the vocabulary bank (Content/vocab.json): an array of
+    /// { "word", "pos", "definition", "example" }. Idempotent (matched on word).
+    /// </summary>
+    /// <param name="path">Path of vocab.json.</param>
+    /// <returns>Number of words added or updated.</returns>
+    public int ImportVocab(string path)
+    {
+        if (!File.Exists(path)) return 0;
+        List<VocabDto>? words;
+        try { words = JsonSerializer.Deserialize<List<VocabDto>>(File.ReadAllText(path), JsonOpts); }
+        catch (JsonException ex)
+        {
+            _log.LogWarning("vocab.json is invalid: {Message}", ex.Message);
+            return 0;
+        }
+        if (words is null) return 0;
+
+        var existing = _db.VocabWords.ToDictionary(w => w.Word, StringComparer.OrdinalIgnoreCase); // Word -> row
+        int n = 0;
+        foreach (var w in words.Where(w => !string.IsNullOrWhiteSpace(w.Word)))
+        {
+            if (!existing.TryGetValue(w.Word!.Trim(), out var row))
+            {
+                row = new VocabWord { Word = w.Word.Trim() };
+                _db.VocabWords.Add(row);
+                existing[row.Word] = row;
+            }
+            row.PartOfSpeech = w.Pos ?? "";
+            row.Definition = w.Definition ?? "";
+            row.Example = w.Example ?? "";
+            n++;
+        }
+        _db.SaveChanges();
+        _log.LogInformation("Vocabulary import: {Count} words", n);
+        return n;
+    }
+
+    /// <summary>One vocabulary entry as written in vocab.json.</summary>
+    public class VocabDto
+    {
+        public string? Word { get; set; }          // The word
+        public string? Pos { get; set; }           // Part of speech
+        public string? Definition { get; set; }    // Definition
+        public string? Example { get; set; }       // Example sentence
     }
 
     /// <summary>Returns an error message for a bad question, or null if it is valid.</summary>
