@@ -86,6 +86,15 @@ class SmokeTest {
             await p.waitForLoadState("networkidle");
         }
 
+        console.log("Official College Board questions");
+        await this.open("/Practice?section=Math&mode=New");
+        const stemHtml = await p.innerHTML(".q-stem");
+        this.check("math practice serves a question", stemHtml.length > 0);
+        this.check("no raw HTML tags shown as text", !(await p.textContent(".q-stem")).includes("<p>"));
+        await this.open("/Practice?section=ReadingWriting&mode=New");
+        this.check("R&W practice serves a question with a passage", await p.locator(".q-passage").count() === 1);
+        this.check("hidden 'blank' label not visible", !(await p.locator(".sr-only").first().isVisible().catch(() => false)));
+
         console.log("Skills, mistakes, bank");
         await this.open("/Skills");
         this.check("skill progress shows a practised skill", (await p.textContent("main")).includes("correct · last"));

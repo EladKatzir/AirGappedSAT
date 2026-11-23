@@ -153,7 +153,7 @@ else
                 </div>
                 @if (Model.Card.Answered)
                 {
-                    <p class="text-center small text-muted mt-3">@Model.AnsweredThisSession questions answered today</p>
+                    <p class="text-center small text-muted mt-3">@Model.AnsweredThisSession question@(Model.AnsweredThisSession == 1 ? "" : "s") answered today</p>
                 }
             }
         </div>

@@ -22,6 +22,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 import urllib.request
 from html import unescape
@@ -118,8 +119,10 @@ class Fetcher:
         print(f"  [{n}/{total}] {meta['questionId']}")
         detail = Http.post_json(f"{API}/digital/get-question", {"external_id": key})
         detail = json.loads(Images.embed(json.dumps(detail)))
-        with open(path, "w", encoding="utf-8") as f:
+        tmp = f"{path}.{os.getpid()}.{threading.get_ident()}.tmp"
+        with open(tmp, "w", encoding="utf-8") as f:                           # Write to a temp file, then rename atomically
             json.dump({"meta": meta, "detail": detail}, f)
+        os.replace(tmp, path)
         time.sleep(DELAY)
 
 
@@ -211,8 +214,13 @@ class Converter:
         files = sorted(os.listdir(folder)) if os.path.isdir(folder) else []
         questions = []
         for name in files:
-            with open(os.path.join(folder, name), encoding="utf-8") as f:
-                raw = json.load(f)
+            try:
+                with open(os.path.join(folder, name), encoding="utf-8") as f:
+                    raw = json.load(f)
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                os.remove(os.path.join(folder, name))                         # Corrupt cache file: delete so "fetch" gets it again
+                self.problems.append(f"{name}: corrupt cache file removed (run fetch again)")
+                continue
             q = self.convert(raw["meta"], raw["detail"])
             if q:
                 questions.append(q)
@@ -304,6 +312,9 @@ class Converter:
         choices = [raw_choices[k].get("body", "") for k in sorted(raw_choices)] if isinstance(raw_choices, dict) else []
         if choices:
             cc = str(ans.get("correct_choice") or "").strip().upper()
+            if cc not in ("A", "B", "C", "D"):                                 # Some items state it only in the rationale
+                m = re.search(r"Choice\s+([A-D])\s+is\s+(?:the\s+)?correct", re.sub(r"<[^>]+>", " ", ans.get("rationale") or ""))
+                cc = m.group(1) if m else ""
             answer = cc if cc in ("A", "B", "C", "D") else None
         else:
             raw = str(ans.get("correct_choice") or "")
