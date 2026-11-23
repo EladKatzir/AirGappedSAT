@@ -29,6 +29,9 @@ public record PracticeFilter(
 /// </summary>
 public class PracticeSelector
 {
+    /// <summary>Id prefix of official College Board questions (preferred over generated ones).</summary>
+    public const string OfficialPrefix = "cb-";
+
     private readonly AppDbContext _db;       // Database
     private readonly Random _rng = new();    // Randomness so the order is not predictable
 
@@ -97,12 +100,16 @@ public class PracticeSelector
             candidates.Add(scope);
         }
 
-        foreach (var c in candidates)
+        foreach (var tier in candidates)
         {
-            int count = c.Count();                                                    // How many match this tier
-            if (count == 0) continue;
-            return c.Include(x => x.Skill).ThenInclude(s => s!.Domain)
-                .OrderBy(x => x.Id).Skip(_rng.Next(count)).First();                   // Random pick inside the tier
+            // Inside each tier, official SAT questions come first; generated ones fill gaps
+            foreach (var c in new[] { tier.Where(x => x.ExternalId.StartsWith(OfficialPrefix)), tier })
+            {
+                int count = c.Count();                                                // How many match
+                if (count == 0) continue;
+                return c.Include(x => x.Skill).ThenInclude(s => s!.Domain)
+                    .OrderBy(x => x.Id).Skip(_rng.Next(count)).First();               // Random pick
+            }
         }
         return null;
     }

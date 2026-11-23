@@ -188,3 +188,13 @@ mark.hl { background: #ffec99; color: inherit; padding: 0; }
 .q-stem th, .q-passage th, .tp-left th, .tp-right th { background: var(--sp-bg); font-weight: 600; }
 .choice .katex { font-size: 1.15em; }
 .q-passage ul { margin-bottom: 0; }
+
+/* ---------- official (HTML) question markup ---------- */
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.underline, u { text-decoration: underline; text-underline-offset: 3px; }
+.italic { font-style: italic; } .bold { font-weight: 700; }
+.q-stem img, .q-passage img, .explanation img, .tp-left img, .tp-right img, .choice img { max-width: 100%; height: auto; vertical-align: middle; }
+.q-stem svg, .q-passage svg, .explanation svg, .tp-left svg, .tp-right svg { max-width: 100%; height: auto; }
+[data-bs-theme="dark"] .math-img, [data-bs-theme="dark"] .q-stem svg, [data-bs-theme="dark"] .q-passage svg, [data-bs-theme="dark"] .tp-right svg { background: #fff; border-radius: 4px; }
+math { font-size: 1.08em; }
+.q-passage figure, .q-stem figure { margin: 10px 0; }

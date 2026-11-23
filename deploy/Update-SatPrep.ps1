@@ -16,8 +16,11 @@
 param([string]$InstallDir = 'C:\SatPrep')
 
 $ErrorActionPreference = 'Stop'
+$mode = 'Service'                                                # Keep the current hosting mode
 if (-not (Get-Service -Name 'SatPrep' -ErrorAction SilentlyContinue)) {
-    throw "SatPrep is not installed. Run INSTALL.bat for a first-time installation."
+    $iis = (Get-Module -ListAvailable -Name WebAdministration) -and (Import-Module WebAdministration -PassThru) -and (Test-Path 'IIS:\Sites\SatPrep')
+    if (-not $iis) { throw "SatPrep is not installed. Run SETUP.bat for a first-time installation." }
+    $mode = 'IIS'
 }
 $port = 5100                                                     # Default if the setting cannot be read
 $settings = Join-Path $InstallDir 'appsettings.json'
@@ -25,4 +28,4 @@ if (Test-Path $settings) {
     $urls = (Get-Content $settings -Raw | ConvertFrom-Json).Urls
     if ($urls -match ':(\d+)') { $port = [int]$Matches[1] }      # Keep the current port
 }
-& (Join-Path $PSScriptRoot 'Install-SatPrep.ps1') -InstallDir $InstallDir -Port $port
+& (Join-Path $PSScriptRoot 'Install-SatPrep.ps1') -Mode $mode -InstallDir $InstallDir -Port $port

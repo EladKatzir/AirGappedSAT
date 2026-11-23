@@ -2,7 +2,7 @@
 setlocal EnableExtensions
 REM ===========================================================================
 REM  SatPrep - quick console run (no installation)
-REM  For permanent hosting use INSTALL.bat (Windows Service).
+REM  For permanent hosting use SETUP.bat in the release folder.
 REM  1) Unblock files copied from USB (prevents "Could not load assembly")
 REM  2) Warn if the service is already running / port 5100 is taken
 REM  3) Start SatPrep.exe in this window (close the window to stop it)

@@ -33,6 +33,7 @@ public class TestService
     private readonly AppDbContext _db;           // Database
     private readonly ProgressService _progress;  // Records answers / mastery
     private readonly Random _rng = new();        // Question shuffling
+    private HashSet<int> _officialIds = new();   // Ids of official questions (filled per module)
 
     /// <param name="db">Database context.</param>
     /// <param name="progress">Progress recorder.</param>
@@ -209,6 +210,7 @@ public class TestService
         // Questions already used in this test, and everything the learner has seen before
         var usedInTest = _db.TestItems.Where(i => i.TestAttemptId == test.Id).Select(i => i.QuestionId).ToHashSet();
         var seen = _db.Attempts.Where(a => a.UserId == test.UserId).Select(a => a.QuestionId).Distinct().ToHashSet();
+        _officialIds = _db.Questions.Where(q => q.ExternalId.StartsWith(PracticeSelector.OfficialPrefix)).Select(q => q.Id).ToHashSet();
 
         int order = 1;                                                           // Position shown to the learner
         foreach (var (domainCode, count) in blueprint)
@@ -246,7 +248,9 @@ public class TestService
     {
         var taken = already.Select(a => a.Id).ToHashSet();
         return source.Where(q => !taken.Contains(q.Id))
-            .OrderBy(q => seen.Contains(q.Id) ? 1 : 0).ThenBy(_ => _rng.Next())
+            .OrderBy(q => seen.Contains(q.Id) ? 1 : 0)                          // Unseen first
+            .ThenBy(q => _officialIds.Contains(q.Id) ? 0 : 1)                   // Then official SAT questions
+            .ThenBy(_ => _rng.Next())
             .Take(n).ToList();
     }
 

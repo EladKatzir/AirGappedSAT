@@ -71,8 +71,7 @@ public class BankModel : PageModel
         PageNo = Math.Clamp(PageNo, 1, Pages);
         Rows = filtered.Skip((PageNo - 1) * PageSize).Take(PageSize).Select(x =>
         {
-            var text = (string.IsNullOrWhiteSpace(x.Passage) ? x.Stem : x.Passage + " — " + x.Stem).Replace("\n", " ");
-            if (text.Length > 140) text = text[..140] + "…";
+            var text = Md.Preview(string.IsNullOrWhiteSpace(x.Passage) ? x.Stem : x.Passage + " — " + x.Stem, 140);
             return new Row(x.Id, x.Skill, x.Difficulty, text, StatusOf(x.Id));
         }).ToList();
     }

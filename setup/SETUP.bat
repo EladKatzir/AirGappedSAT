@@ -1,10 +1,10 @@
 @echo off
 setlocal
 REM ===========================================================================
-REM  SatPrep installer launcher
-REM  Installs / upgrades SatPrep as the "SatPrep" Windows Service.
-REM  Asks for Administrator rights automatically.
-REM  Options are passed through, e.g.:  INSTALL.bat -Port 8080
+REM  SatPrep quick setup - double-click me.
+REM  Asks for Administrator rights, verifies the files, then installs SatPrep
+REM  as a Windows Service (recommended) or an IIS website - your choice.
+REM  Options pass through, e.g.:  SETUP.bat -Mode IIS -Port 8080
 REM ===========================================================================
 cd /d "%~dp0"
 
@@ -15,6 +15,6 @@ if errorlevel 1 (
     exit /b
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Install-SatPrep.ps1" %*
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0Setup-SatPrep.ps1" %*
 echo.
 pause

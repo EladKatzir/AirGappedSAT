@@ -46,12 +46,19 @@ New-Item -ItemType Directory -Path $Destination -Force | Out-Null
 $target = Join-Path $Destination ("satprep-{0:yyyyMMdd-HHmmss}.db" -f (Get-Date))
 
 $svc = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
-$wasRunning = $svc -and $svc.Status -eq 'Running'
+$wasRunning = $svc -and $svc.Status -eq 'Running'                # Service mode
+$poolRunning = $false                                           # IIS mode
+if (Get-Module -ListAvailable -Name WebAdministration) {
+    Import-Module WebAdministration
+    $poolRunning = (Test-Path "IIS:\AppPools\$ServiceName") -and (Get-WebAppPoolState -Name $ServiceName).Value -eq 'Started'
+}
 try {
     if ($wasRunning) { Stop-Service -Name $ServiceName -Force; $svc.WaitForStatus('Stopped', '00:00:30') }
+    if ($poolRunning) { Stop-WebAppPool -Name $ServiceName; Start-Sleep -Seconds 3 }
     Copy-Item $db $target
 } finally {
     if ($wasRunning) { Start-Service -Name $ServiceName }       # Always bring the app back
+    if ($poolRunning) { Start-WebAppPool -Name $ServiceName }
 }
 Write-Host "Backup written: $target" -ForegroundColor Green
 

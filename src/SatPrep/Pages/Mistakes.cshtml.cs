@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using SatPrep.Data;
 using SatPrep.Extensions;
 using SatPrep.Models;
+using SatPrep.Services;
 
 namespace SatPrep.Pages;
 
@@ -56,8 +57,7 @@ public class MistakesModel : PageModel
         Rows = questions.Select(q =>
         {
             var lw = latestWrong[q.Id];
-            var preview = (q.Passage ?? q.Stem).Replace("\n", " ");
-            if (preview.Length > 110) preview = preview[..110] + "…";
+            var preview = Md.Preview(string.IsNullOrWhiteSpace(q.Passage) ? q.Stem : q.Passage, 110);
             return new Row(q.Id, q.Skill!.Name, q.Skill.Domain!.Name, q.Difficulty, preview,
                 string.IsNullOrEmpty(lw.Latest.GivenAnswer) ? "blank" : lw.Latest.GivenAnswer,
                 lw.Latest.AnsweredUtc, lw.Wrong, reviews.TryGetValue(q.Id, out var due) ? due : null);

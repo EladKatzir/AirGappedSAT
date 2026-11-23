@@ -90,6 +90,9 @@ public class ContentImporter
 
         var skillsByCode = _db.Skills.ToDictionary(s => s.Code, StringComparer.OrdinalIgnoreCase); // Code -> Skill lookup
         string source = $"{pack.Pack} | {pack.Source} | {pack.Licence}";                          // Attribution stored per question
+        var ids = pack.Questions.Select(q => q.Id).Where(id => id is not null).ToHashSet();       // Ids in this pack
+        var existing = _db.Questions.Where(x => ids.Contains(x.ExternalId))
+            .ToDictionary(x => x.ExternalId);                                                     // Load matches in one query
 
         foreach (var q in pack.Questions)
         {
@@ -101,11 +104,12 @@ public class ContentImporter
                 continue;
             }
 
-            var entity = _db.Questions.FirstOrDefault(x => x.ExternalId == q.Id); // Existing row?
+            existing.TryGetValue(q.Id!, out var entity);             // Existing row? (one lookup, no query)
             if (entity is null)
             {
                 entity = new Question { ExternalId = q.Id! };
                 _db.Questions.Add(entity);                           // Queue insert
+                existing[entity.ExternalId] = entity;                // Guard against duplicate ids inside one pack
                 added++;
             }
             else if (entity.IsManual)

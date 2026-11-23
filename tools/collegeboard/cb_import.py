@@ -32,7 +32,7 @@ CACHE = os.path.join(ROOT, "tools", "collegeboard", "cache")                    
 PACK = os.path.join(ROOT, "src", "SatPrep", "Content", "packs", "collegeboard-sat.json")  # Output pack
 SAT_EVENT = 99                                                                        # "SAT" in the site's assessment list
 SECTIONS = {1: "INI,CAS,EOI,SEC", 2: "H,P,Q,S"}                                       # test id -> domain codes
-DELAY = 1.0                                                                           # Seconds between detail requests
+DELAY = 0.4                                                                           # Seconds between detail requests
 UA = "Mozilla/5.0 (SatPrep offline study importer)"                                   # Polite, identifiable client
 
 # Official skill names (site text, lower-cased) -> SatPrep skill codes (Data/SatTaxonomy.cs)
@@ -146,6 +146,59 @@ class Images:
         return cls.SRC.sub(repl, text)
 
 
+class SprFromRationale:
+    """
+    Older student-produced items have no answer field; the rationale starts
+    "The correct answer is 7" or shows the number as an image whose alt text
+    reads e.g. "three halves" / "negative 2". This recovers accepted answers.
+    """
+
+    UNITS = {"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
+             "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
+             "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50}
+    DENOMS = {"half": 2, "halves": 2, "third": 3, "thirds": 3, "fourth": 4, "fourths": 4, "quarter": 4, "quarters": 4,
+              "fifth": 5, "fifths": 5, "sixth": 6, "sixths": 6, "seventh": 7, "sevenths": 7, "eighth": 8, "eighths": 8,
+              "ninth": 9, "ninths": 9, "tenth": 10, "tenths": 10, "eleventh": 11, "elevenths": 11, "twelfth": 12, "twelfths": 12}
+
+    @classmethod
+    def extract(cls, rationale):
+        """Returns 'a|b' accepted answers, or '' when the rationale doesn't state one clearly."""
+        html = re.sub(r'<img[^>]*alt="([^"]*)"[^>]*>', lambda m: f" {cls.words_to_number(m.group(1)) or m.group(1)} ", rationale)
+        text = unescape(re.sub(r"<[^>]+>", " ", html))
+        text = re.sub(r"\s+", " ", text).replace("\u2212", "-").replace("\u2013", "-")
+        m = re.search(r"correct answer is (.+?)(?:\. [A-Z]|\.$|$)", text, re.IGNORECASE)
+        if not m:
+            return ""
+        found = re.findall(r"-?\d*\.?\d+(?:/\d+)?", m.group(1).replace(",", ""))
+        return "|".join(dict.fromkeys(found[:4]))
+
+    @classmethod
+    def words_to_number(cls, alt):
+        """'three halves' -> '3/2', 'negative 7' -> '-7', '12' -> '12'; None if not a number phrase."""
+        words = alt.lower().replace("-", " ").split()
+        if not words:
+            return None
+        sign = ""
+        if words[0] in ("negative", "minus"):
+            sign, words = "-", words[1:]
+        if len(words) == 1 and re.fullmatch(r"\d*\.?\d+", words[0]):
+            return sign + words[0]
+        num, i = 0, 0
+        while i < len(words) and (words[i] in cls.UNITS or words[i].isdigit()):
+            num += cls.UNITS.get(words[i], int(words[i]) if words[i].isdigit() else 0)
+            i += 1
+        if i == 0:
+            return None
+        rest = [w for w in words[i:] if w not in ("over", "and")]
+        if not rest:
+            return f"{sign}{num}"
+        if rest[0] in cls.DENOMS:
+            return f"{sign}{num}/{cls.DENOMS[rest[0]]}"
+        if len(words) > i + 1 and words[i] == "over" and words[i + 1] in cls.UNITS:
+            return f"{sign}{num}/{cls.UNITS[words[i + 1]]}"
+        return None
+
+
 class Converter:
     """Turns cached items into a SatPrep content pack."""
 
@@ -253,7 +306,9 @@ class Converter:
             cc = str(ans.get("correct_choice") or "").strip().upper()
             answer = cc if cc in ("A", "B", "C", "D") else None
         else:
-            answer = "|".join(Converter.clean_spr(x) for x in re.split(r"[,;]| or ", str(ans.get("correct_choice") or "")) if x.strip())
+            raw = str(ans.get("correct_choice") or "")
+            answer = "|".join(Converter.clean_spr(x) for x in re.split(r"[,;]| or ", raw) if x.strip()) if raw.strip() \
+                else SprFromRationale.extract(ans.get("rationale") or "")      # Older items state the answer only in the rationale
         return passage, stem, choices, answer, ans.get("rationale") or ""
 
     @staticmethod

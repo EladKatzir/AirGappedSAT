@@ -69,8 +69,8 @@ public class IndexModel : PageModel
                 int pct = s.N == 0 ? 0 : 100 * s.C / s.N;
                 // Flag questions whose real accuracy contradicts their label (needs at least 8 answers)
                 bool suspicious = s.N >= 8 && ((x.Difficulty == Difficulty.Easy && pct < 30) || (x.Difficulty == Difficulty.Hard && pct > 90));
-                var text = (x.Passage ?? x.Stem).Replace("\n", " ");
-                return new StatRow(x.Id, x.Skill, x.Difficulty, text.Length > 100 ? text[..100] + "…" : text, s.N, pct, x.IsActive, x.IsManual, suspicious);
+                var text = Md.Preview(string.IsNullOrWhiteSpace(x.Passage) ? x.Stem : x.Passage, 100);
+                return new StatRow(x.Id, x.Skill, x.Difficulty, text, s.N, pct, x.IsActive, x.IsManual, suspicious);
             });
 
         rows = Sort switch

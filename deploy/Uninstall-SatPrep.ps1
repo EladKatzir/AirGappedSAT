@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Removes the SatPrep Windows Service and firewall rule.
+    Removes SatPrep (Windows Service or IIS site) and its firewall rule.
 
 .DESCRIPTION
     By default the install folder (with satprep.db and backups) is KEPT so no
@@ -29,6 +29,12 @@ if ($svc) {
     Write-Host 'Service removed.' -ForegroundColor Green
 } else {
     Write-Host 'Service not found (already removed).'
+}
+
+if (Get-Module -ListAvailable -Name WebAdministration) {           # IIS mode: remove site and app pool
+    Import-Module WebAdministration
+    if (Test-Path 'IIS:\Sites\SatPrep') { Remove-Website -Name 'SatPrep'; Write-Host 'IIS site removed.' -ForegroundColor Green }
+    if (Test-Path 'IIS:\AppPools\SatPrep') { Remove-WebAppPool -Name 'SatPrep'; Write-Host 'IIS app pool removed.' -ForegroundColor Green }
 }
 
 Get-NetFirewallRule -DisplayName 'SatPrep HTTP*' -ErrorAction SilentlyContinue | Remove-NetFirewallRule

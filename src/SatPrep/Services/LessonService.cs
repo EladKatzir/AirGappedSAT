@@ -40,6 +40,16 @@ public static class Md
     /// <param name="isHtml">True when the question stores HTML.</param>
     public static string QuestionInline(string? text, bool isHtml) => isHtml ? HtmlSanitizer.Clean(text) : RenderInline(text);
 
+    /// <summary>Short plain-text preview of a question field (tags and entities removed) for lists.</summary>
+    /// <param name="text">Field text (Markdown or HTML).</param>
+    /// <param name="max">Maximum length.</param>
+    public static string Preview(string? text, int max)
+    {
+        var s = System.Net.WebUtility.HtmlDecode(Regex.Replace(text ?? "", "<[^>]+>", " "));   // Strip tags, decode &rsquo; etc.
+        s = Regex.Replace(s.Replace("$", ""), @"\s+", " ").Trim();
+        return s.Length > max ? s[..max] + "…" : s;
+    }
+
     /// <summary>Renders a single line without the surrounding &lt;p&gt; (used for answer choices).</summary>
     /// <param name="markdown">Source text.</param>
     public static string RenderInline(string? markdown)

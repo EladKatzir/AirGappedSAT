@@ -23,3 +23,6 @@ Thumbs.db
 
 # College Board raw downloads (rebuilt by tools/collegeboard/cb_import.py fetch)
 tools/collegeboard/cache/
+
+# Offline prerequisites downloaded by the build (shipped split inside release/)
+build/prereqs/
