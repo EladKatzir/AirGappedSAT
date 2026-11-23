@@ -14,7 +14,7 @@ An offline SAT study platform for an air-gapped Windows Server 2022 network. Sis
 - **Practice tests**: full-length adaptive (module 2 is harder or easier depending on module 1), section-only, or a short test. Bluebook-style player with timer, navigator, mark for review, answer eliminator, highlighter, an **offline graphing calculator** (replaces Desmos) and the reference sheet. Results include domain accuracy, a pacing chart and a full review.
 - **Content page**: upload JSON question packs, edit or add questions, retire bad ones, see real accuracy per question, download a database backup.
 
-Bundled questions: **the official College Board SAT Suite question bank** (all SAT Reading & Writing and Math questions with official explanations, served first in practice and tests) plus **1,182 original questions** (math answers computed by generators), 210 vocabulary words and 8 lessons. See `docs/CONTENT_SOURCES.md`.
+Bundled questions: **all 4,125 SAT questions from the official College Board SAT Suite question bank** (2,030 Reading & Writing + 2,095 Math, each with the official explanation; served first in practice and tests) plus **1,182 original questions** (math answers computed by generators), 210 vocabulary words and 8 lessons. See `docs/CONTENT_SOURCES.md`.
 
 ## Install on the server (quick setup)
 
@@ -51,6 +51,6 @@ python3 tools/contentgen/build_packs.py
 python3 tools/collegeboard/cb_import.py all
 ```
 
-The commands above: run the unit and service tests (22), run the app at http://localhost:5100, build the release (app zip plus the `release/` folder with SETUP.bat), run the browser smoke test against a running app, regenerate the bundled original content, and re-download and convert the College Board question bank.
+The commands above: run the unit and service tests (31), run the app at http://localhost:5100, build the release (app zip plus the `release/` folder with SETUP.bat), run the browser smoke test against a running app, regenerate the bundled original content, and re-download and convert the College Board question bank.
 
 Stack: ASP.NET Core 8 Razor Pages, EF Core 9 + SQLite, Bootstrap 5.3, KaTeX, math.js and Chart.js. Everything is vendored in `wwwroot/lib`.

@@ -42,6 +42,24 @@ public class TestFlowTests : IDisposable
     }
 
     [Fact]
+    public void Every_question_accepts_its_own_answer_key()
+    {
+        // Guards the whole bank (official + generated): the stored key must grade as correct
+        var failures = _db.Questions.AsEnumerable()
+            .Where(q => !AnswerChecker.IsCorrect(q, q.CorrectAnswer.Split('|')[0]))
+            .Select(q => q.ExternalId).Take(10).ToList();
+        Assert.Empty(failures);
+    }
+
+    [Fact]
+    public void Official_questions_are_imported_as_html()
+    {
+        var official = _db.Questions.Where(q => q.ExternalId.StartsWith("cb-")).ToList();
+        Assert.True(official.Count > 4000);
+        Assert.All(official, q => Assert.True(q.IsHtml));
+    }
+
+    [Fact]
     public void Wrong_answer_creates_review_item_and_updates_mastery()
     {
         var progress = new ProgressService(_db, new MasteryService());

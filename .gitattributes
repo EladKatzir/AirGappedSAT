@@ -1,3 +1,6 @@
 *.bat text eol=crlf
 *.ps1 text eol=crlf
 *.sh text eol=lf
+*.zip binary
+*.exe binary
+*.[0-9][0-9][0-9] binary

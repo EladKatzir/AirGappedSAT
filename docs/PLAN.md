@@ -80,3 +80,10 @@ All features in section 2 are built and verified:
 Open items:
 - Import College Board / Aniko / OnePrep content once it is available as an export (see CONTENT_SOURCES.md).
 - Hebrew UI (if wanted), following ShiftManager's localization approach.
+
+## 7. Status (2026-11-23): v1.1
+
+- **4,125 official College Board SAT questions** imported (all answer keys validated by a test that grades every question against its own key), plus 1,182 original questions: **5,307 total**.
+- Quick setup: `release/SETUP.bat` asks **Windows Service** or **IIS website**. IIS mode automates the "Installing IIS on Windows Server 2022" guide (role, ASP.NET Core Module from the bundled Hosting Bundle, app pool, site, firewall).
+- Verified: 31 unit/service tests, 29/29 browser smoke checks (zero JS errors, zero external requests), first start about 5 s with the full bank, SETUP's join/verify/extract simulated. The Windows-only install steps still need their first run on the real server.
+- Aniko: not imported (bot checkpoint; see CONTENT_SOURCES.md).

@@ -93,7 +93,9 @@ class SmokeTest {
         this.check("no raw HTML tags shown as text", !(await p.textContent(".q-stem")).includes("<p>"));
         await this.open("/Practice?section=ReadingWriting&mode=New");
         this.check("R&W practice serves a question with a passage", await p.locator(".q-passage").count() === 1);
-        this.check("hidden 'blank' label not visible", !(await p.locator(".sr-only").first().isVisible().catch(() => false)));
+        const sr = p.locator(".sr-only").first();                       // Screen-reader-only text ("blank") must take no visible space
+        const box = (await sr.count()) ? await sr.boundingBox() : null;
+        this.check("hidden 'blank' label takes no visible space", !box || (box.width <= 1 && box.height <= 1));
 
         console.log("Skills, mistakes, bank");
         await this.open("/Skills");
