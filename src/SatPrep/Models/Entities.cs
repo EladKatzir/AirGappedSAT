@@ -108,6 +108,7 @@ public class Question
     public string Source { get; set; } = "";             // Content pack name / attribution (who wrote it, licence)
     public bool IsActive { get; set; } = true;           // Lets an admin retire a bad question without deleting history
     public bool IsManual { get; set; }                   // Created/edited in the admin editor (re-imports never overwrite it)
+    public bool IsHtml { get; set; }                     // Text fields are HTML (e.g. official items with MathML) instead of Markdown
 }
 
 /// <summary>

@@ -30,6 +30,16 @@ public static class Md
     /// <param name="markdown">Source text (null-safe).</param>
     public static string Render(string? markdown) => string.IsNullOrEmpty(markdown) ? "" : Markdown.ToHtml(markdown, Pipeline);
 
+    /// <summary>Renders a question field: sanitized HTML for HTML items, Markdown otherwise.</summary>
+    /// <param name="text">Field text.</param>
+    /// <param name="isHtml">True when the question stores HTML.</param>
+    public static string Question(string? text, bool isHtml) => isHtml ? HtmlSanitizer.Clean(text) : Render(text);
+
+    /// <summary>Inline variant of <see cref="Question"/> for answer choices.</summary>
+    /// <param name="text">Choice text.</param>
+    /// <param name="isHtml">True when the question stores HTML.</param>
+    public static string QuestionInline(string? text, bool isHtml) => isHtml ? HtmlSanitizer.Clean(text) : RenderInline(text);
+
     /// <summary>Renders a single line without the surrounding &lt;p&gt; (used for answer choices).</summary>
     /// <param name="markdown">Source text.</param>
     public static string RenderInline(string? markdown)

@@ -20,3 +20,6 @@ Thumbs.db
 
 # Claude local settings
 .claude/settings.local.json
+
+# College Board raw downloads (rebuilt by tools/collegeboard/cb_import.py fetch)
+tools/collegeboard/cache/

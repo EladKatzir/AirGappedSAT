@@ -101,6 +101,9 @@ namespace SatPrep.Data.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsHtml")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("IsManual")
                         .HasColumnType("INTEGER");
 

@@ -114,9 +114,10 @@ public class TakeModel : PageModel
             id = i.Id,
             order = i.Order,
             format = i.Question!.Format == AnswerFormat.StudentProduced ? "spr" : "mc",
-            passage = Md.Render(i.Question.Passage),
-            stem = Md.Render(i.Question.Stem),
-            choices = (JsonSerializer.Deserialize<List<string>>(i.Question.ChoicesJson) ?? new()).Select(Md.RenderInline).ToList(),
+            passage = Md.Question(i.Question.Passage, i.Question.IsHtml),
+            stem = Md.Question(i.Question.Stem, i.Question.IsHtml),
+            choices = (JsonSerializer.Deserialize<List<string>>(i.Question.ChoicesJson) ?? new())
+                .Select(c => Md.QuestionInline(c, i.Question.IsHtml)).ToList(),
             answer = i.GivenAnswer,
             marked = i.IsMarked,
             eliminated = JsonSerializer.Deserialize<List<string>>(i.EliminatedJson) ?? new()

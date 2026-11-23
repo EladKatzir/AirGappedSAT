@@ -128,6 +128,7 @@ public class ContentImporter
             entity.CorrectAnswer = q.Answer!.Trim();
             entity.Explanation = q.Explanation ?? "";
             entity.Source = source;
+            entity.IsHtml = q.Html;
             entity.IsActive = true;
         }
 
@@ -221,5 +222,6 @@ public class ContentImporter
         public List<string>? Choices { get; set; }           // 4 choices for MC
         public string? Answer { get; set; }                  // "A".."D" or accepted numeric answers "a|b"
         public string? Explanation { get; set; }             // Worked explanation
+        public bool Html { get; set; }                       // True = fields are HTML (sanitized on display), not Markdown
     }
 }

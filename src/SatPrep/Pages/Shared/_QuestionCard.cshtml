@@ -25,9 +25,9 @@
 
 @if (!string.IsNullOrWhiteSpace(q.Passage))
 {
-    <div class="q-passage">@Html.Raw(Md.Render(q.Passage))</div>
+    <div class="q-passage">@Html.Raw(Md.Question(q.Passage, q.IsHtml))</div>
 }
-<div class="q-stem">@Html.Raw(Md.Render(q.Stem))</div>
+<div class="q-stem">@Html.Raw(Md.Question(q.Stem, q.IsHtml))</div>
 
 @if (Model.Answered)
 {
@@ -58,7 +58,7 @@
                 <input type="radio" name="answer" value="@letter" required />
             }
             <span class="letter">@letter</span>
-            <span class="ctext">@Html.Raw(Md.RenderInline(choices[i]))</span>
+            <span class="ctext">@Html.Raw(Md.QuestionInline(choices[i], q.IsHtml))</span>
         </label>
     }
 }
@@ -80,6 +80,6 @@ else
 {
     <div class="explanation mt-3">
         <div class="fw-semibold mb-1">Explanation</div>
-        @Html.Raw(Md.Render(q.Explanation))
+        @Html.Raw(Md.Question(q.Explanation, q.IsHtml))
     </div>
 }
